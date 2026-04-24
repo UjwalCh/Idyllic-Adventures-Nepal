@@ -1,0 +1,163 @@
+import { useCallback, useEffect, useState } from "react";
+import { Notice, Trek, mockNotices, mockTreks } from "./mockData";
+import {
+  fetchInquiries,
+  getSiteSettings,
+  fetchWebsiteEvents,
+  fetchNotices,
+  fetchTreks,
+  Inquiry,
+  isSupabaseConfigured,
+  SiteSettings,
+  subscribeToInquiries,
+  subscribeToNotices,
+  subscribeToSiteSettings,
+  subscribeToTreks,
+  subscribeToWebsiteEvents,
+  WebsiteEvent,
+} from "./supabaseData";
+
+export function useTreks() {
+  const [treks, setTreks] = useState<Trek[]>(mockTreks);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadTreks = useCallback(async () => {
+    try {
+      const data = await fetchTreks();
+      setTreks(data);
+      setError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch treks";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadTreks();
+    const unsubscribe = subscribeToTreks(() => {
+      void loadTreks();
+    });
+    return unsubscribe;
+  }, [loadTreks]);
+
+  return { treks, loading, error, refresh: loadTreks };
+}
+
+export function useNotices() {
+  const [notices, setNotices] = useState<Notice[]>(mockNotices);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadNotices = useCallback(async () => {
+    try {
+      const data = await fetchNotices();
+      setNotices(data);
+      setError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch notices";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadNotices();
+    const unsubscribe = subscribeToNotices(() => {
+      void loadNotices();
+    });
+    return unsubscribe;
+  }, [loadNotices]);
+
+  return { notices, loading, error, refresh: loadNotices };
+}
+
+export function useWebsiteAnalytics(hours = 24) {
+  const [events, setEvents] = useState<WebsiteEvent[]>([]);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadEvents = useCallback(async () => {
+    try {
+      const data = await fetchWebsiteEvents(hours);
+      setEvents(data);
+      setError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch website analytics";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [hours]);
+
+  useEffect(() => {
+    void loadEvents();
+    const unsubscribe = subscribeToWebsiteEvents(() => {
+      void loadEvents();
+    });
+    return unsubscribe;
+  }, [loadEvents]);
+
+  return { events, loading, error, refresh: loadEvents };
+}
+
+export function useInquiries() {
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadInquiries = useCallback(async () => {
+    try {
+      const data = await fetchInquiries();
+      setInquiries(data);
+      setError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch inquiries";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadInquiries();
+    const unsubscribe = subscribeToInquiries(() => {
+      void loadInquiries();
+    });
+    return unsubscribe;
+  }, [loadInquiries]);
+
+  return { inquiries, loading, error, refresh: loadInquiries };
+}
+
+export function useSiteSettings() {
+  const [settings, setSettings] = useState<SiteSettings>({});
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadSettings = useCallback(async () => {
+    try {
+      const data = await getSiteSettings();
+      setSettings(data);
+      setError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch site settings";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSettings();
+    const unsubscribe = subscribeToSiteSettings(() => {
+      void loadSettings();
+    });
+    return unsubscribe;
+  }, [loadSettings]);
+
+  return { settings, loading, error, refresh: loadSettings };
+}

@@ -1,0 +1,1028 @@
+import { createClient } from "@supabase/supabase-js";
+import { Trek, Notice, mockTreks, mockNotices } from "./mockData";
+
+// Disposable email domains list
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'tempmail.com', 'guerrillamail.com', '10minutemail.com', 'throwaway.email',
+  'mailinator.com', 'trashmail.com', 'yopmail.com', 'fakeinbox.com',
+  'temp-mail.org', 'maildrop.cc', 'sharklasers.com'
+]);
+
+export interface SiteSettings {
+  [key: string]: string;
+}
+
+export interface SpamConfig {
+  name: string;
+  blocked_keywords: string[];
+  max_urls_allowed: number;
+  check_disposable_emails: boolean;
+  use_honeypot: boolean;
+  enabled: boolean;
+  check_url_limit: boolean;
+}
+
+// Get site settings from cache or database
+let settingsCache: SiteSettings | null = null;
+let settingsCacheTime = 0;
+const SETTINGS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+export async function getSiteSettings(): Promise<SiteSettings> {
+  const now = Date.now();
+  if (settingsCache && now - settingsCacheTime < SETTINGS_CACHE_DURATION) {
+    return settingsCache;
+  }
+
+  if (!supabase) return {};
+
+  try {
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('key, value');
+
+    if (error) throw error;
+
+    const settings: SiteSettings = {};
+    (data as Array<{ key: string; value: string }>).forEach(row => {
+      settings[row.key] = row.value;
+    });
+
+    settingsCache = settings;
+    settingsCacheTime = now;
+    return settings;
+  } catch (error) {
+    console.error('Failed to fetch site settings:', error);
+    return {};
+  }
+}
+
+export async function updateSiteSettings(values: Record<string, string>): Promise<void> {
+  if (!supabase) return;
+
+  const rows = Object.entries(values).map(([key, value]) => ({
+    key,
+    value,
+    updated_at: new Date().toISOString(),
+  }));
+
+  if (!rows.length) return;
+
+  const { error } = await supabase.from("site_settings").upsert(rows, { onConflict: "key" });
+  if (error) {
+    throw error;
+  }
+
+  settingsCache = null;
+  settingsCacheTime = 0;
+}
+
+export function subscribeToSiteSettings(onChange: () => void): () => void {
+  if (!supabase) {
+    return () => {};
+  }
+
+  const channel = supabase
+    .channel("site-settings-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "site_settings" }, onChange)
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
+// Get spam config
+let spamConfigCache: SpamConfig | null = null;
+let spamConfigCacheTime = 0;
+const SPAM_CONFIG_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
+export async function getSpamConfig(): Promise<SpamConfig | null> {
+  const now = Date.now();
+  if (spamConfigCache && now - spamConfigCacheTime < SPAM_CONFIG_CACHE_DURATION) {
+    return spamConfigCache;
+  }
+
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('spam_config')
+      .select('*')
+      .eq('name', 'default')
+      .single();
+
+    if (error) {
+      console.warn('No spam config found:', error);
+      return null;
+    }
+
+    spamConfigCache = data as SpamConfig;
+    spamConfigCacheTime = now;
+    return data as SpamConfig;
+  } catch (error) {
+    console.error('Failed to fetch spam config:', error);
+    return null;
+  }
+}
+
+export async function updateSpamConfig(config: Partial<SpamConfig>): Promise<void> {
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from("spam_config")
+    .update({ ...config, updated_at: new Date().toISOString() })
+    .eq("name", "default");
+
+  if (error) {
+    throw error;
+  }
+
+  spamConfigCache = null;
+  spamConfigCacheTime = 0;
+}
+
+export async function fetchSubmissionLogs(hours = 24): Promise<Array<{ id: string; ip_address: string; flagged: boolean; spam_reason: string | null; created_at: string }>> {
+  if (!supabase) return [];
+
+  const from = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("submission_logs")
+    .select("id, ip_address, flagged, spam_reason, created_at")
+    .gte("created_at", from)
+    .order("created_at", { ascending: false })
+    .limit(5000);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as Array<{ id: string; ip_address: string; flagged: boolean; spam_reason: string | null; created_at: string }>;
+}
+
+// Get client IP address
+function getClientIP(): string {
+  if (typeof window === 'undefined') return 'unknown';
+  // This is a simplified version - in production, you'd use headers from server
+  return (window as any).__CLIENT_IP__ || 'unknown';
+}
+
+// Check if email is valid
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+// Check if email is from disposable domain
+function isDisposableEmail(email: string): boolean {
+  const domain = email.split('@')[1]?.toLowerCase();
+  return domain ? DISPOSABLE_EMAIL_DOMAINS.has(domain) : false;
+}
+
+// Count URLs in text
+function countURLs(text: string): number {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const matches = text.match(urlRegex);
+  return matches ? matches.length : 0;
+}
+
+// Check rate limit for IP
+export async function checkRateLimit(ipAddress: string): Promise<{ allowed: boolean; reason?: string }> {
+  if (!supabase) return { allowed: true };
+
+  try {
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    // Check submissions in last hour
+    const { data: hourData, error: hourError } = await supabase
+      .from('submission_logs')
+      .select('id')
+      .eq('ip_address', ipAddress)
+      .gte('created_at', oneHourAgo.toISOString())
+      .lt('created_at', now.toISOString());
+
+    if (hourError) throw hourError;
+    if ((hourData?.length ?? 0) >= 1) {
+      return { allowed: false, reason: 'Too many submissions in the last hour. Please try again later.' };
+    }
+
+    // Check submissions in last 24 hours
+    const { data: dayData, error: dayError } = await supabase
+      .from('submission_logs')
+      .select('id')
+      .eq('ip_address', ipAddress)
+      .gte('created_at', oneDayAgo.toISOString())
+      .lt('created_at', now.toISOString());
+
+    if (dayError) throw dayError;
+    if ((dayData?.length ?? 0) >= 5) {
+      return { allowed: false, reason: 'Maximum submissions per day exceeded. Please try again tomorrow.' };
+    }
+
+    return { allowed: true };
+  } catch (error) {
+    console.error('Failed to check rate limit:', error);
+    return { allowed: true }; // Allow on error to not block users
+  }
+}
+
+// Check for spam
+export async function checkSpam(formData: {
+  name: string;
+  email: string;
+  message: string;
+  honeypot?: string;
+}): Promise<{ isSpam: boolean; reason?: string }> {
+  const spamConfig = await getSpamConfig();
+  if (!spamConfig || !spamConfig.enabled) {
+    return { isSpam: false };
+  }
+
+  // Check honeypot
+  if (spamConfig.use_honeypot && formData.honeypot) {
+    return { isSpam: true, reason: 'Honeypot field detected' };
+  }
+
+  // Check email validity
+  if (!isValidEmail(formData.email)) {
+    return { isSpam: true, reason: 'Invalid email format' };
+  }
+
+  // Check disposable email
+  if (spamConfig.check_disposable_emails && isDisposableEmail(formData.email)) {
+    return { isSpam: true, reason: 'Disposable email not allowed' };
+  }
+
+  const combinedText = `${formData.name} ${formData.message}`.toLowerCase();
+
+  // Check blocked keywords
+  if (spamConfig.blocked_keywords && spamConfig.blocked_keywords.length > 0) {
+    for (const keyword of spamConfig.blocked_keywords) {
+      if (combinedText.includes(keyword.toLowerCase())) {
+        return { isSpam: true, reason: `Blocked keyword detected: ${keyword}` };
+      }
+    }
+  }
+
+  // Check URL count
+  const urlCount = countURLs(formData.message);
+  if (spamConfig.check_url_limit && urlCount > spamConfig.max_urls_allowed) {
+    return { isSpam: true, reason: `Too many URLs (max: ${spamConfig.max_urls_allowed})` };
+  }
+
+  return { isSpam: false };
+}
+
+// Log submission
+export async function logSubmission(
+  ipAddress: string,
+  inquiryId: string | null,
+  flagged: boolean = false,
+  spamReason?: string
+): Promise<void> {
+  if (!supabase) return;
+
+  try {
+    await supabase.from('submission_logs').insert({
+      ip_address: ipAddress,
+      inquiry_id: inquiryId,
+      flagged,
+      spam_reason: spamReason,
+    });
+  } catch (error) {
+    console.error('Failed to log submission:', error);
+  }
+}
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as
+  | string
+  | undefined;
+
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+export const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl!, supabaseAnonKey!)
+  : null;
+
+export const TREK_IMAGES_BUCKET = "trek-images";
+
+interface TrekRecord {
+  id: string;
+  title: string;
+  description: string;
+  duration: string;
+  difficulty: Trek["difficulty"];
+  max_altitude: string;
+  best_season: string;
+  group_size: string;
+  price: string;
+  image: string;
+  featured: boolean;
+  highlights: string[] | null;
+  itinerary: Trek["itinerary"] | null;
+  created_at?: string;
+}
+
+interface NoticeRecord {
+  id: string;
+  title: string;
+  message: string;
+  date: string;
+  type: Notice["type"];
+  created_at?: string;
+}
+
+export interface WebsiteEvent {
+  id: string;
+  eventType: "page_view" | "cta_click";
+  path: string;
+  referrer: string | null;
+  userAgent: string | null;
+  sessionId: string;
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  countryCode: string | null;
+  locationLabel: string | null;
+  createdAt: string;
+}
+
+interface WebsiteEventRecord {
+  id: string;
+  event_type: "page_view" | "cta_click";
+  path: string;
+  referrer: string | null;
+  user_agent: string | null;
+  session_id: string;
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  country_code: string | null;
+  location_label: string | null;
+  created_at: string;
+}
+
+interface VisitorLocation {
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  countryCode: string | null;
+  locationLabel: string | null;
+}
+
+interface IpApiResponse {
+  country_name?: string;
+  country?: string;
+  region?: string;
+  city?: string;
+  country_code?: string;
+}
+
+const VISITOR_LOCATION_CACHE_KEY = "idyllic_visitor_location";
+let visitorLocationPromise: Promise<VisitorLocation | null> | null = null;
+
+export interface Inquiry {
+  id: string;
+  inquiryType: "booking" | "contact" | "inquiry";
+  status: "new" | "in_progress" | "closed";
+  name: string;
+  email: string;
+  phone: string | null;
+  trek: string | null;
+  peopleCount: number | null;
+  preferredDate: string | null;
+  message: string;
+  sourcePath: string | null;
+  createdAt: string;
+}
+
+interface InquiryRecord {
+  id: string;
+  inquiry_type: "booking" | "contact" | "inquiry";
+  status: "new" | "in_progress" | "closed";
+  name: string;
+  email: string;
+  phone: string | null;
+  trek: string | null;
+  people_count: number | null;
+  preferred_date: string | null;
+  message: string;
+  source_path: string | null;
+  created_at: string;
+}
+
+function mapTrekRecordToTrek(record: TrekRecord): Trek {
+  return {
+    id: record.id,
+    title: record.title,
+    description: record.description,
+    duration: record.duration,
+    difficulty: record.difficulty,
+    maxAltitude: record.max_altitude,
+    bestSeason: record.best_season,
+    groupSize: record.group_size,
+    price: record.price,
+    image: record.image,
+    featured: record.featured,
+    highlights: record.highlights ?? [],
+    itinerary: record.itinerary ?? [],
+  };
+}
+
+function mapTrekToRecord(trek: Trek): Omit<TrekRecord, "created_at"> {
+  return {
+    id: trek.id,
+    title: trek.title,
+    description: trek.description,
+    duration: trek.duration,
+    difficulty: trek.difficulty,
+    max_altitude: trek.maxAltitude,
+    best_season: trek.bestSeason,
+    group_size: trek.groupSize,
+    price: trek.price,
+    image: trek.image,
+    featured: trek.featured,
+    highlights: trek.highlights,
+    itinerary: trek.itinerary,
+  };
+}
+
+function mapNoticeRecordToNotice(record: NoticeRecord): Notice {
+  return {
+    id: record.id,
+    title: record.title,
+    message: record.message,
+    date: record.date,
+    type: record.type,
+  };
+}
+
+export async function fetchTreks(): Promise<Trek[]> {
+  if (!supabase) {
+    return mockTreks;
+  }
+
+  const { data, error } = await supabase
+    .from("treks")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as TrekRecord[]).map(mapTrekRecordToTrek);
+}
+
+export async function fetchNotices(): Promise<Notice[]> {
+  if (!supabase) {
+    return mockNotices;
+  }
+
+  const { data, error } = await supabase
+    .from("notices")
+    .select("*")
+    .order("date", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as NoticeRecord[]).map(mapNoticeRecordToNotice);
+}
+
+export function subscribeToTreks(onChange: () => void): () => void {
+  if (!supabase) {
+    return () => {};
+  }
+
+  const channel = supabase
+    .channel("treks-realtime")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "treks" },
+      onChange
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
+export function subscribeToNotices(onChange: () => void): () => void {
+  if (!supabase) {
+    return () => {};
+  }
+
+  const channel = supabase
+    .channel("notices-realtime")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "notices" },
+      onChange
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
+export async function toggleFeaturedTrek(
+  id: string,
+  featured: boolean
+): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("treks")
+    .update({ featured })
+    .eq("id", id);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function deleteTrek(id: string): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase.from("treks").delete().eq("id", id);
+  if (error) {
+    throw error;
+  }
+}
+
+export async function createTrek(trek: Trek): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase.from("treks").insert(mapTrekToRecord(trek));
+  if (error) {
+    throw error;
+  }
+}
+
+export async function updateTrek(
+  id: string,
+  patch: Partial<Omit<Trek, "id">>
+): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  const payload: Partial<Omit<TrekRecord, "id" | "created_at">> = {};
+
+  if (patch.title !== undefined) payload.title = patch.title;
+  if (patch.description !== undefined) payload.description = patch.description;
+  if (patch.duration !== undefined) payload.duration = patch.duration;
+  if (patch.difficulty !== undefined) payload.difficulty = patch.difficulty;
+  if (patch.maxAltitude !== undefined) payload.max_altitude = patch.maxAltitude;
+  if (patch.bestSeason !== undefined) payload.best_season = patch.bestSeason;
+  if (patch.groupSize !== undefined) payload.group_size = patch.groupSize;
+  if (patch.price !== undefined) payload.price = patch.price;
+  if (patch.image !== undefined) payload.image = patch.image;
+  if (patch.featured !== undefined) payload.featured = patch.featured;
+  if (patch.highlights !== undefined) payload.highlights = patch.highlights;
+  if (patch.itinerary !== undefined) payload.itinerary = patch.itinerary;
+
+  const { error } = await supabase.from("treks").update(payload).eq("id", id);
+  if (error) {
+    throw error;
+  }
+}
+
+export async function deleteNotice(id: string): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase.from("notices").delete().eq("id", id);
+  if (error) {
+    throw error;
+  }
+}
+
+export async function createNotice(
+  notice: Omit<Notice, "id">
+): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase.from("notices").insert(notice);
+  if (error) {
+    throw error;
+  }
+}
+
+export async function uploadTrekImage(file: File): Promise<string> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "-");
+  const path = `${crypto.randomUUID()}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(TREK_IMAGES_BUCKET)
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type,
+    });
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage.from(TREK_IMAGES_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+export async function deleteStoredTrekImage(imageUrl: string): Promise<void> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const bucketPrefix = `/storage/v1/object/public/${TREK_IMAGES_BUCKET}/`;
+  const index = imageUrl.indexOf(bucketPrefix);
+
+  if (index === -1) {
+    return;
+  }
+
+  const path = imageUrl.slice(index + bucketPrefix.length);
+  const { error } = await supabase.storage.from(TREK_IMAGES_BUCKET).remove([path]);
+  if (error) {
+    throw error;
+  }
+}
+
+function mapWebsiteEventRecordToEvent(record: WebsiteEventRecord): WebsiteEvent {
+  return {
+    id: record.id,
+    eventType: record.event_type,
+    path: record.path,
+    referrer: record.referrer,
+    userAgent: record.user_agent,
+    sessionId: record.session_id,
+    country: record.country,
+    region: record.region,
+    city: record.city,
+    countryCode: record.country_code,
+    locationLabel: record.location_label,
+    createdAt: record.created_at,
+  };
+}
+
+function getSessionId(): string {
+  const fallback = crypto.randomUUID();
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  const key = "idyllic_session_id";
+  const existing = window.localStorage.getItem(key);
+  if (existing) {
+    return existing;
+  }
+
+  window.localStorage.setItem(key, fallback);
+  return fallback;
+}
+
+function normalizeLocationPart(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.slice(0, 120) : null;
+}
+
+function buildLocationLabel(country: string | null, region: string | null, city: string | null): string | null {
+  const parts = [city, region, country].filter((part): part is string => Boolean(part));
+  return parts.length ? parts.join(", ") : null;
+}
+
+async function loadVisitorLocation(): Promise<VisitorLocation | null> {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const cached = window.sessionStorage.getItem(VISITOR_LOCATION_CACHE_KEY);
+    if (cached) {
+      return JSON.parse(cached) as VisitorLocation;
+    }
+  } catch {
+    window.sessionStorage.removeItem(VISITOR_LOCATION_CACHE_KEY);
+  }
+
+  if (visitorLocationPromise) {
+    return visitorLocationPromise;
+  }
+
+  visitorLocationPromise = (async () => {
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timeoutId = controller ? window.setTimeout(() => controller.abort(), 2500) : null;
+
+    try {
+      const response = await fetch("https://ipapi.co/json/", {
+        signal: controller?.signal,
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = (await response.json()) as IpApiResponse;
+      const country = normalizeLocationPart(data.country_name ?? data.country);
+      const region = normalizeLocationPart(data.region);
+      const city = normalizeLocationPart(data.city);
+      const countryCode = normalizeLocationPart(data.country_code)?.toUpperCase() ?? null;
+      const location: VisitorLocation = {
+        country,
+        region,
+        city,
+        countryCode,
+        locationLabel: buildLocationLabel(country, region, city),
+      };
+
+      try {
+        window.sessionStorage.setItem(VISITOR_LOCATION_CACHE_KEY, JSON.stringify(location));
+      } catch {
+        // Ignore storage failures and fall back to best-effort tracking.
+      }
+
+      return location;
+    } catch {
+      return null;
+    } finally {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    }
+  })();
+
+  return visitorLocationPromise;
+}
+
+export async function trackWebsiteEvent(
+  eventType: "page_view" | "cta_click",
+  path: string
+): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  const trimmedPath = path.trim().slice(0, 300);
+  if (!trimmedPath) {
+    return;
+  }
+
+  const referrer = typeof document !== "undefined" ? document.referrer || null : null;
+  const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
+  const visitorLocation = await loadVisitorLocation();
+
+  const { error } = await supabase.from("website_events").insert({
+    event_type: eventType,
+    path: trimmedPath,
+    referrer,
+    user_agent: userAgent,
+    session_id: getSessionId(),
+    country: visitorLocation?.country ?? null,
+    region: visitorLocation?.region ?? null,
+    city: visitorLocation?.city ?? null,
+    country_code: visitorLocation?.countryCode ?? null,
+    location_label: visitorLocation?.locationLabel ?? null,
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function fetchWebsiteEvents(hours = 24): Promise<WebsiteEvent[]> {
+  if (!supabase) {
+    return [];
+  }
+
+  const from = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from("website_events")
+    .select("id, event_type, path, referrer, user_agent, session_id, country, region, city, country_code, location_label, created_at")
+    .gte("created_at", from)
+    .order("created_at", { ascending: false })
+    .limit(5000);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as WebsiteEventRecord[]).map(mapWebsiteEventRecordToEvent);
+}
+
+export function subscribeToWebsiteEvents(onChange: () => void): () => void {
+  if (!supabase) {
+    return () => {};
+  }
+
+  const channel = supabase
+    .channel("website-events-realtime")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "website_events" },
+      onChange
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
+function mapInquiryRecordToInquiry(record: InquiryRecord): Inquiry {
+  return {
+    id: record.id,
+    inquiryType: record.inquiry_type,
+    status: record.status,
+    name: record.name,
+    email: record.email,
+    phone: record.phone,
+    trek: record.trek,
+    peopleCount: record.people_count,
+    preferredDate: record.preferred_date,
+    message: record.message,
+    sourcePath: record.source_path,
+    createdAt: record.created_at,
+  };
+}
+
+export async function createInquiry(payload: {
+  inquiryType: "booking" | "contact" | "inquiry";
+  name: string;
+  email: string;
+  phone?: string;
+  trek?: string;
+  peopleCount?: number;
+  preferredDate?: string;
+  message: string;
+  sourcePath?: string;
+}): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  const cleanPayload = {
+    inquiry_type: payload.inquiryType,
+    name: payload.name.trim(),
+    email: payload.email.trim(),
+    phone: payload.phone?.trim() || null,
+    trek: payload.trek?.trim() || null,
+    people_count:
+      typeof payload.peopleCount === "number" && Number.isFinite(payload.peopleCount)
+        ? payload.peopleCount
+        : null,
+    preferred_date: payload.preferredDate || null,
+    message: payload.message.trim(),
+    source_path: payload.sourcePath?.trim().slice(0, 300) || null,
+  };
+
+  const { error } = await supabase.from("inquiries").insert(cleanPayload);
+  if (error) {
+    throw error;
+  }
+}
+
+export async function createInquiryWithValidation(payload: {
+  inquiryType: "booking" | "contact" | "inquiry";
+  name: string;
+  email: string;
+  phone?: string;
+  trek?: string;
+  peopleCount?: number;
+  preferredDate?: string;
+  message: string;
+  sourcePath?: string;
+  honeypot?: string;
+  clientIp: string;
+}): Promise<"submitted" | "blocked"> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const ipAddress = payload.clientIp.trim() || "unknown";
+  const rateLimit = await checkRateLimit(ipAddress);
+  if (!rateLimit.allowed) {
+    await logSubmission(ipAddress, null, true, rateLimit.reason);
+    throw new Error(rateLimit.reason ?? "Rate limit reached.");
+  }
+
+  const spamCheck = await checkSpam({
+    name: payload.name,
+    email: payload.email,
+    message: payload.message,
+    honeypot: payload.honeypot,
+  });
+
+  if (spamCheck.isSpam) {
+    await logSubmission(ipAddress, null, true, spamCheck.reason);
+    return "blocked";
+  }
+
+  const cleanPayload = {
+    inquiry_type: payload.inquiryType,
+    name: payload.name.trim(),
+    email: payload.email.trim(),
+    phone: payload.phone?.trim() || null,
+    trek: payload.trek?.trim() || null,
+    people_count:
+      typeof payload.peopleCount === "number" && Number.isFinite(payload.peopleCount)
+        ? payload.peopleCount
+        : null,
+    preferred_date: payload.preferredDate || null,
+    message: payload.message.trim(),
+    source_path: payload.sourcePath?.trim().slice(0, 300) || null,
+  };
+
+  const { data, error } = await supabase
+    .from("inquiries")
+    .insert(cleanPayload)
+    .select("id")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  await logSubmission(ipAddress, data.id, false);
+  return "submitted";
+}
+
+export async function fetchInquiries(): Promise<Inquiry[]> {
+  if (!supabase) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("inquiries")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(5000);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as InquiryRecord[]).map(mapInquiryRecordToInquiry);
+}
+
+export async function updateInquiryStatus(
+  id: string,
+  status: "new" | "in_progress" | "closed"
+): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase.from("inquiries").update({ status }).eq("id", id);
+  if (error) {
+    throw error;
+  }
+}
+
+export async function deleteInquiry(id: string): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase.from("inquiries").delete().eq("id", id);
+  if (error) {
+    throw error;
+  }
+}
+
+export function subscribeToInquiries(onChange: () => void): () => void {
+  if (!supabase) {
+    return () => {};
+  }
+
+  const channel = supabase
+    .channel("inquiries-realtime")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "inquiries" },
+      onChange
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
