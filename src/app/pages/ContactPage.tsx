@@ -9,7 +9,7 @@ import {
   trackWebsiteEvent,
 } from "../data/supabaseData";
 import { useSiteSettings } from "../data/useRealtimeData";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import ImageWithFallback from "../components/figma/ImageWithFallback";
 
 type InquiryType = "booking" | "contact" | "inquiry";
 

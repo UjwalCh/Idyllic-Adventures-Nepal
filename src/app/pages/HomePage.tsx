@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import { motion } from "motion/react";
 import { ArrowRight, Mountain, Users, Award, Shield } from "lucide-react";
 import { useNotices, useSiteSettings, useTreks } from "../data/useRealtimeData";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import ImageWithFallback from "../components/figma/ImageWithFallback";
 import { trackWebsiteEvent } from "../data/supabaseData";
 import { LiveCounter } from "../components/ui/LiveCounter";
 

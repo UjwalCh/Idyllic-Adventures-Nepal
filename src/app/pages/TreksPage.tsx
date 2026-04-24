@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { ArrowRight, Filter } from "lucide-react";
 import { useSiteSettings, useTreks } from "../data/useRealtimeData";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import ImageWithFallback from "../components/figma/ImageWithFallback";
 
 export function TreksPage() {
   const { settings } = useSiteSettings();

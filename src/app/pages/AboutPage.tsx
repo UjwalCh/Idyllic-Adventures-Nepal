@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { Award, Heart, Shield, Users } from "lucide-react";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import ImageWithFallback from "../components/figma/ImageWithFallback";
 import { useSiteSettings } from "../data/useRealtimeData";
 
 export function AboutPage() {

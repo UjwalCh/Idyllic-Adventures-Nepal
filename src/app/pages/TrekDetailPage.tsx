@@ -11,7 +11,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useTreks } from "../data/useRealtimeData";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import ImageWithFallback from "../components/figma/ImageWithFallback";
 import { trackWebsiteEvent } from "../data/supabaseData";
 
 export function TrekDetailPage() {
