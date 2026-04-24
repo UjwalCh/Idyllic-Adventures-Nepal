@@ -164,15 +164,15 @@ I believe in sustainable tourism that respects local communities and preserves t
           >
             <div className="relative h-80">
               <ImageWithFallback
-                src="https://images.unsplash.com/photo-1554710869-95f3df6a3197?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw0fHxOZXBhbCUyMEhpbWFsYXlhcyUyMG1vdW50YWlucyUyMEV2ZXJlc3QlMjB0cmVrfGVufDF8fHx8MTc3NjkyOTg0NHww&ixlib=rb-4.1.0&q=80&w=1080"
+                src={settings.about_guide_image || "https://images.unsplash.com/photo-1554710869-95f3df6a3197?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw0fHxOZXBhbCUyMEhpbWFsYXlhcyUyMG1vdW50YWlucyUyMEV2ZXJlc3QlMjB0cmVrfGVufDF8fHx8MTc3NjkyOTg0NHww&ixlib=rb-4.1.0&q=80&w=1080"}
                 alt="Lead Guide"
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="p-6 text-center">
-              <h3 className="font-heading text-xl mb-1">Tenzing Sherpa</h3>
-              <p className="text-accent mb-2">Founder and Lead Trek Guide</p>
-              <p className="text-sm text-muted-foreground">15 years of Himalayan trekking experience</p>
+              <h3 className="font-heading text-xl mb-1">{settings.about_guide_name || "Tenzing Sherpa"}</h3>
+              <p className="text-accent mb-2">{settings.about_guide_role || "Founder and Lead Trek Guide"}</p>
+              <p className="text-sm text-muted-foreground">{settings.about_guide_experience || "15 years of Himalayan trekking experience"}</p>
             </div>
           </motion.div>
         </div>

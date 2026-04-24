@@ -56,19 +56,21 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   }
 }
 
-export async function updateSiteSettings(values: Record<string, string>): Promise<void> {
+export async function updateSiteSettings(values: Record<string, string | undefined | null>): Promise<void> {
   if (!supabase) return;
 
-  const rows = Object.entries(values).map(([key, value]) => ({
-    key,
-    value,
-    updated_at: new Date().toISOString(),
-  }));
+  const rows = Object.entries(values)
+    .filter(([_, value]) => value !== undefined && value !== null)
+    .map(([key, value]) => ({
+      key: key.trim(),
+      value: String(value).trim(),
+    }));
 
   if (!rows.length) return;
 
   const { error } = await supabase.from("site_settings").upsert(rows, { onConflict: "key" });
   if (error) {
+    console.error("Supabase Settings Error:", error);
     throw error;
   }
 

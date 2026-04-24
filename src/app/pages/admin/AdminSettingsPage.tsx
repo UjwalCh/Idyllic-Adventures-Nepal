@@ -7,9 +7,12 @@ import {
   getSpamConfig,
   updateSiteSettings,
   updateSpamConfig,
+  uploadImage,
+  TREK_IMAGES_BUCKET,
   type SiteSettings,
   type SpamConfig,
 } from "../../data/supabaseData";
+import { Upload, Loader2, Camera } from "lucide-react";
 
 const SITE_SETTING_CATEGORIES = [
   {
@@ -66,6 +69,10 @@ const SITE_SETTING_CATEGORIES = [
       { key: "about_values_subtitle", label: "Values Section Subtitle", multiline: true },
       { key: "about_guide_title", label: "Guide Section Title" },
       { key: "about_guide_subtitle", label: "Guide Section Subtitle", multiline: true },
+      { key: "about_guide_image", label: "Guide Image URL" },
+      { key: "about_guide_name", label: "Guide Name" },
+      { key: "about_guide_role", label: "Guide Role" },
+      { key: "about_guide_experience", label: "Guide Experience Text" },
     ]
   },
   {
@@ -133,6 +140,16 @@ export function AdminSettingsPage() {
 
   const updateField = (key: string, value: string) => {
     setSiteSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleImageUpload = async (key: string, file: File) => {
+    try {
+      const publicUrl = await uploadImage(file, TREK_IMAGES_BUCKET);
+      updateField(key, publicUrl);
+      toast.success("Image uploaded!");
+    } catch (err) {
+      toast.error("Upload failed");
+    }
   };
 
   const handleSaveSite = async () => {
@@ -229,12 +246,28 @@ export function AdminSettingsPage() {
                           placeholder={`${field.label}...`}
                         />
                       ) : (
-                        <input
-                          value={currentValue}
-                          onChange={(e) => updateField(field.key, e.target.value)}
-                          className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:ring-1 focus:ring-accent outline-none transition-all placeholder:text-muted-foreground/50"
-                          placeholder={`${field.label}...`}
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            value={currentValue}
+                            onChange={(e) => updateField(field.key, e.target.value)}
+                            className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:ring-1 focus:ring-accent outline-none transition-all placeholder:text-muted-foreground/50"
+                            placeholder={`${field.label}...`}
+                          />
+                          {field.key.includes("image") && (
+                            <label className="flex items-center justify-center p-2 bg-muted hover:bg-muted/80 rounded-lg cursor-pointer transition-colors">
+                              <Camera className="w-4 h-4 text-muted-foreground" />
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) void handleImageUpload(field.key, file);
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
