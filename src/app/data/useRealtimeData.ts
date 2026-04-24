@@ -15,6 +15,12 @@ import {
   subscribeToTreks,
   subscribeToWebsiteEvents,
   WebsiteEvent,
+  fetchJournalEntries,
+  fetchGalleryImages,
+  subscribeToJournal,
+  subscribeToGallery,
+  JournalEntry,
+  GalleryImage,
 } from "./supabaseData";
 
 export function useTreks() {
@@ -160,4 +166,60 @@ export function useSiteSettings() {
   }, [loadSettings]);
 
   return { settings, loading, error, refresh: loadSettings };
+}
+
+export function useJournal(onlyPublished = true) {
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadEntries = useCallback(async () => {
+    try {
+      const data = await fetchJournalEntries(onlyPublished);
+      setEntries(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch journal entries");
+    } finally {
+      setLoading(false);
+    }
+  }, [onlyPublished]);
+
+  useEffect(() => {
+    void loadEntries();
+    const unsubscribe = subscribeToJournal(() => {
+      void loadEntries();
+    });
+    return unsubscribe;
+  }, [loadEntries]);
+
+  return { entries, loading, error, refresh: loadEntries };
+}
+
+export function useGallery() {
+  const [images, setImages] = useState<GalleryImage[]>([]);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadImages = useCallback(async () => {
+    try {
+      const data = await fetchGalleryImages();
+      setImages(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch gallery images");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadImages();
+    const unsubscribe = subscribeToGallery(() => {
+      void loadImages();
+    });
+    return unsubscribe;
+  }, [loadImages]);
+
+  return { images, loading, error, refresh: loadImages };
 }

@@ -306,6 +306,8 @@ export const supabase = isSupabaseConfigured
   : null;
 
 export const TREK_IMAGES_BUCKET = "trek-images";
+export const JOURNAL_IMAGES_BUCKET = "journal-images";
+export const GALLERY_IMAGES_BUCKET = "gallery-images";
 
 interface TrekRecord {
   id: string;
@@ -624,6 +626,10 @@ export async function createNotice(
 }
 
 export async function uploadTrekImage(file: File): Promise<string> {
+  return uploadImage(file, TREK_IMAGES_BUCKET);
+}
+
+export async function uploadImage(file: File, bucket: string): Promise<string> {
   if (!supabase) {
     throw new Error("Supabase is not configured.");
   }
@@ -632,7 +638,7 @@ export async function uploadTrekImage(file: File): Promise<string> {
   const path = `${crypto.randomUUID()}-${safeName}`;
 
   const { error: uploadError } = await supabase.storage
-    .from(TREK_IMAGES_BUCKET)
+    .from(bucket)
     .upload(path, file, {
       cacheControl: "3600",
       upsert: false,
@@ -643,7 +649,7 @@ export async function uploadTrekImage(file: File): Promise<string> {
     throw uploadError;
   }
 
-  const { data } = supabase.storage.from(TREK_IMAGES_BUCKET).getPublicUrl(path);
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
 }
 
@@ -1026,3 +1032,190 @@ export function subscribeToInquiries(onChange: () => void): () => void {
     void supabase.removeChannel(channel);
   };
 }
+
+export interface JournalEntry {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  excerpt: string | null;
+  image: string | null;
+  category: string | null;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface JournalEntryRecord {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  excerpt: string | null;
+  image: string | null;
+  category: string | null;
+  published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GalleryImage {
+  id: string;
+  title: string | null;
+  description: string | null;
+  url: string;
+  category: string | null;
+  createdAt: string;
+}
+
+interface GalleryImageRecord {
+  id: string;
+  title: string | null;
+  description: string | null;
+  url: string;
+  category: string | null;
+  created_at: string;
+}
+
+function mapJournalRecordToEntry(record: JournalEntryRecord): JournalEntry {
+  return {
+    id: record.id,
+    title: record.title,
+    slug: record.slug,
+    content: record.content,
+    excerpt: record.excerpt,
+    image: record.image,
+    category: record.category,
+    published: record.published,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+  };
+}
+
+function mapGalleryRecordToImage(record: GalleryImageRecord): GalleryImage {
+  return {
+    id: record.id,
+    title: record.title,
+    description: record.description,
+    url: record.url,
+    category: record.category,
+    createdAt: record.created_at,
+  };
+}
+
+export async function fetchJournalEntries(onlyPublished = true): Promise<JournalEntry[]> {
+  if (!supabase) return [];
+
+  let query = supabase.from("journal_entries").select("*").order("created_at", { ascending: false });
+
+  if (onlyPublished) {
+    query = query.eq("published", true);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return (data as JournalEntryRecord[]).map(mapJournalRecordToEntry);
+}
+
+export async function fetchJournalEntryBySlug(slug: string): Promise<JournalEntry | null> {
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("journal_entries")
+    .select("*")
+    .eq("slug", slug)
+    .single();
+
+  if (error) return null;
+  return mapJournalRecordToEntry(data as JournalEntryRecord);
+}
+
+export async function createJournalEntry(entry: Omit<JournalEntry, "id" | "createdAt" | "updatedAt">): Promise<void> {
+  if (!supabase) return;
+
+  const { error } = await supabase.from("journal_entries").insert({
+    title: entry.title,
+    slug: entry.slug,
+    content: entry.content,
+    excerpt: entry.excerpt,
+    image: entry.image,
+    category: entry.category,
+    published: entry.published,
+  });
+
+  if (error) throw error;
+}
+
+export async function updateJournalEntry(id: string, patch: Partial<JournalEntry>): Promise<void> {
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from("journal_entries")
+    .update({
+      ...patch,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
+export async function deleteJournalEntry(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("journal_entries").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export function subscribeToJournal(onChange: () => void): () => void {
+  if (!supabase) return () => {};
+
+  const channel = supabase
+    .channel("journal-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "journal_entries" }, onChange)
+    .subscribe();
+
+  return () => { void supabase.removeChannel(channel); };
+}
+
+export async function fetchGalleryImages(): Promise<GalleryImage[]> {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("gallery_images")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data as GalleryImageRecord[]).map(mapGalleryRecordToImage);
+}
+
+export async function addGalleryImage(image: Omit<GalleryImage, "id" | "createdAt">): Promise<void> {
+  if (!supabase) return;
+
+  const { error } = await supabase.from("gallery_images").insert({
+    title: image.title,
+    description: image.description,
+    url: image.url,
+    category: image.category,
+  });
+
+  if (error) throw error;
+}
+
+export async function deleteGalleryImage(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("gallery_images").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export function subscribeToGallery(onChange: () => void): () => void {
+  if (!supabase) return () => {};
+
+  const channel = supabase
+    .channel("gallery-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "gallery_images" }, onChange)
+    .subscribe();
+
+  return () => { void supabase.removeChannel(channel); };
+}

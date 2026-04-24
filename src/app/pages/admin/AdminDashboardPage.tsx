@@ -1,26 +1,30 @@
 import { motion } from "motion/react";
-import { Mountain, Image, Bell, Users, TrendingUp, Sparkles, ShieldCheck, ArrowRight, Settings } from "lucide-react";
+import { Mountain, Image, Bell, Users, TrendingUp, Sparkles, ShieldCheck, ArrowRight, Settings, BookOpen, Camera, MousePointer2 } from "lucide-react";
 import { Link } from "react-router";
-import { useInquiries, useNotices, useTreks, useWebsiteAnalytics } from "../../data/useRealtimeData";
+import { useInquiries, useNotices, useTreks, useWebsiteAnalytics, useJournal, useGallery } from "../../data/useRealtimeData";
 import { isSupabaseConfigured } from "../../data/supabaseData";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../../components/ui/chart";
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis, Area, AreaChart, ResponsiveContainer } from "recharts";
 
 export function AdminDashboardPage() {
   const { treks } = useTreks();
   const { notices } = useNotices();
   const { inquiries } = useInquiries();
+  const { entries } = useJournal(false);
+  const { images } = useGallery();
   const { events } = useWebsiteAnalytics(24);
+
   const recentTreks = treks.slice(0, 5);
   const recentInquiries = inquiries.slice(0, 6);
   const featuredTreks = treks.filter((t) => t.featured).length;
   const bookingLeads = inquiries.filter((item) => item.inquiryType === "booking").length;
   const openLeads = inquiries.filter((item) => item.status !== "closed").length;
+  
   const pageViews = events.filter((event) => event.eventType === "page_view");
-  const viewsLastHour = pageViews.filter(
-    (event) => Date.now() - new Date(event.createdAt).getTime() <= 60 * 60 * 1000
-  ).length;
   const activeSessions = new Set(pageViews.map((event) => event.sessionId)).size;
+  
+  // Calculate Conversion Rate
+  const conversionRate = activeSessions > 0 ? ((inquiries.length / activeSessions) * 100).toFixed(1) : "0";
 
   const getVisitorLocationLabel = (event: (typeof pageViews)[number]) => {
     const fallbackLabel = [event.city, event.region, event.country].filter(Boolean).join(", ");
@@ -28,10 +32,7 @@ export function AdminDashboardPage() {
   };
 
   const getCountryLabel = (event: (typeof pageViews)[number]) => {
-    if (event.country) {
-      return event.country;
-    }
-
+    if (event.country) return event.country;
     const locationParts = event.locationLabel?.split(",").map((part) => part.trim()).filter(Boolean) ?? [];
     return locationParts[locationParts.length - 1] ?? "Unknown";
   };
@@ -42,34 +43,9 @@ export function AdminDashboardPage() {
     return acc;
   }, {});
 
-  const locationTotals = pageViews.reduce<Record<string, number>>((acc, event) => {
-    const label = getVisitorLocationLabel(event);
-    acc[label] = (acc[label] ?? 0) + 1;
-    return acc;
-  }, {});
-
   const countryRows = Object.entries(countryTotals)
     .map(([country, visits]) => ({ country, visits }))
     .sort((a, b) => b.visits - a.visits)
-    .slice(0, 5);
-
-  const locationRows = Object.entries(locationTotals)
-    .map(([location, visits]) => ({ location, visits }))
-    .sort((a, b) => b.visits - a.visits)
-    .slice(0, 5);
-
-  const countryCount = new Set(pageViews.map((event) => event.country).filter(Boolean)).size;
-  const topCountry = countryRows[0]?.country ?? "Unknown";
-  const topLocation = locationRows[0]?.location ?? "Unknown";
-
-  const topPages = pageViews.reduce<Record<string, number>>((acc, event) => {
-    acc[event.path] = (acc[event.path] ?? 0) + 1;
-    return acc;
-  }, {});
-
-  const topPageRows = Object.entries(topPages)
-    .map(([path, count]) => ({ path, count }))
-    .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
   const hourlyViewData = Array.from({ length: 12 }, (_, index) => {
@@ -89,527 +65,199 @@ export function AdminDashboardPage() {
     };
   });
 
-  const trafficChartConfig = {
-    views: {
-      label: "Page views",
-      color: "hsl(var(--secondary))",
-    },
-  };
-
-  const geoChartConfig = {
-    visits: {
-      label: "Visits",
-      color: "hsl(var(--accent))",
-    },
-  };
-
-  const extractPriceValue = (priceText: string) => {
-    const normalized = priceText.replace(/,/g, "");
-    const match = normalized.match(/\d+(?:\.\d+)?/);
-    return match ? Number(match[0]) : null;
-  };
-
-  const pricedTreks = treks
-    .map((t) => extractPriceValue(t.price))
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
-
-  const averagePrice = pricedTreks.length
-    ? Math.round(pricedTreks.reduce((sum, value) => sum + value, 0) / pricedTreks.length)
-    : 0;
-
-  const difficultyData = ["Easy", "Moderate", "Challenging", "Strenuous"].map((difficulty) => ({
-    level: difficulty,
-    total: treks.filter((trek) => trek.difficulty === difficulty).length,
-  }));
-
-  const noticeTypeData = ["info", "warning", "success"].map((type) => ({
-    name: type,
-    value: notices.filter((notice) => notice.type === type).length,
-    fill:
-      type === "info"
-        ? "#3b82f6"
-        : type === "warning"
-        ? "#f59e0b"
-        : "#10b981",
-  }));
-
-  const totalHighlights = treks.reduce((sum, trek) => sum + trek.highlights.length, 0);
-  const featuredRatio = treks.length ? Math.round((featuredTreks / treks.length) * 100) : 0;
-
-  const difficultyChartConfig = {
-    total: {
-      label: "Treks",
-      color: "hsl(var(--accent))",
-    },
-  };
-
-  const noticeChartConfig = {
-    info: {
-      label: "Info",
-      color: "#3b82f6",
-    },
-    warning: {
-      label: "Warning",
-      color: "#f59e0b",
-    },
-    success: {
-      label: "Success",
-      color: "#10b981",
-    },
-  };
-
-  const adminHealth = [
-    {
-      label: "Supabase",
-      value: isSupabaseConfigured ? "Connected" : "Not configured",
-      tone: isSupabaseConfigured ? "text-emerald-600" : "text-amber-600",
-      bg: isSupabaseConfigured ? "bg-emerald-50" : "bg-amber-50",
-    },
-    {
-      label: "Realtime",
-      value: "Active",
-      tone: "text-accent",
-      bg: "bg-accent/10",
-    },
-    {
-      label: "Admin access",
-      value: "Protected",
-      tone: "text-secondary",
-      bg: "bg-secondary/10",
-    },
-  ];
-
   const stats = [
-    {
-      label: "Total Treks",
-      value: treks.length,
-      icon: Mountain,
-      color: "text-accent",
-      bgColor: "bg-accent/10",
-    },
-    {
-      label: "Featured Treks",
-      value: featuredTreks,
-      icon: TrendingUp,
-      color: "text-secondary",
-      bgColor: "bg-secondary/10",
-    },
-    {
-      label: "Active Notices",
-      value: notices.length,
-      icon: Bell,
-      color: "text-yellow-600",
-      bgColor: "bg-yellow-100",
-    },
-    {
-      label: "Booking Leads",
-      value: bookingLeads,
-      icon: Users,
-      color: "text-green-600",
-      bgColor: "bg-green-100",
-    },
+    { label: "Active Treks", value: treks.length, icon: Mountain, color: "text-accent", bgColor: "bg-accent/10" },
+    { label: "Journal Entries", value: entries.length, icon: BookOpen, color: "text-secondary", bgColor: "bg-secondary/10" },
+    { label: "Gallery Photos", value: images.length, icon: Camera, color: "text-blue-500", bgColor: "bg-blue-50" },
+    { label: "Conversion", value: `${conversionRate}%`, icon: TrendingUp, color: "text-emerald-600", bgColor: "bg-emerald-50" },
   ];
 
   const quickLinks = [
-    {
-      title: "Manage Treks",
-      description: "Add, edit, or remove trek packages",
-      link: "/admin/dashboard/treks",
-      icon: Mountain,
-    },
-    {
-      title: "Manage Images",
-      description: "Upload and organize trek images",
-      link: "/admin/dashboard/images",
-      icon: Image,
-    },
-    {
-      title: "Manage Notices",
-      description: "Create and update site notices",
-      link: "/admin/dashboard/notices",
-      icon: Bell,
-    },
-    {
-      title: "Manage Inquiries",
-      description: "Review booking and inquiry submissions",
-      link: "/admin/dashboard/inquiries",
-      icon: Users,
-    },
-    {
-      title: "Site Settings",
-      description: "Edit page content, WhatsApp, and anti-spam rules",
-      link: "/admin/dashboard/settings",
-      icon: Settings,
-    },
+    { title: "Manage Treks", description: "Packages & Pricing", link: "/admin/dashboard/treks", icon: Mountain },
+    { title: "Journal", description: "Blog & Stories", link: "/admin/dashboard/journal", icon: BookOpen },
+    { title: "Gallery", description: "Visual Assets", link: "/admin/dashboard/gallery", icon: Camera },
+    { title: "Inquiries", description: "Leads & Bookings", link: "/admin/dashboard/inquiries", icon: Users },
   ];
 
+  const trafficChartConfig = {
+    views: {
+      label: "Views",
+      color: "hsl(var(--accent))",
+    },
+  };
+
   return (
-    <div className="p-8">
+    <div className="p-8 space-y-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        className="flex flex-col md:flex-row md:items-center justify-between gap-4"
       >
-        <section className="mb-8 overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary via-primary to-accent p-8 text-primary-foreground shadow-xl">
-          <div className="relative z-10 grid gap-6 lg:grid-cols-[1.4fr_0.8fr] lg:items-end">
-            <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.25em]">
-                <Sparkles className="h-3.5 w-3.5" />
-                Launch Dashboard
-              </div>
-              <h1 className="font-heading text-4xl md:text-5xl mb-4">Control your live trek site</h1>
-              <p className="max-w-2xl text-primary-foreground/85 text-lg">
-                Manage treks, notices, and image updates from one place. Every change flows through Supabase and shows up on the public site in realtime.
-              </p>
-            </div>
-            <div className="grid gap-3 rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
-              {adminHealth.map((item) => (
-                <div key={item.label} className={`rounded-xl ${item.bg} p-3`}>
-                  <div className="text-xs uppercase tracking-[0.2em] text-primary-foreground/70">{item.label}</div>
-                  <div className={`mt-1 text-sm font-semibold ${item.tone}`}>{item.value}</div>
-                </div>
-              ))}
-            </div>
+        <div>
+          <h1 className="font-heading text-4xl text-primary">Namaste, Admin</h1>
+          <p className="text-muted-foreground">Here is what is happening on Idyllic Adventures today.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold uppercase tracking-widest border border-emerald-100">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+            Live System
           </div>
-        </section>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="bg-card rounded-2xl p-6 border border-border shadow-sm"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                  <stat.icon className={`w-6 h-6 ${stat.color}`} />
-                </div>
-              </div>
-              <div className="text-3xl mb-1">{stat.value}</div>
-              <div className="text-sm text-muted-foreground">{stat.label}</div>
-            </motion.div>
-          ))}
+          <Link to="/admin/dashboard/settings" className="p-2 hover:bg-muted rounded-full transition-colors">
+            <Settings className="w-6 h-6 text-muted-foreground" />
+          </Link>
         </div>
+      </motion.div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+      {/* Hero Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, index) => (
           <motion.div
+            key={stat.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.55 }}
-            className="rounded-2xl border border-border bg-card p-6 shadow-sm"
+            transition={{ delay: index * 0.1 }}
+            className="glass-card rounded-[2rem] p-8"
           >
-            <h2 className="font-heading text-xl mb-1">Difficulty Split</h2>
-            <p className="text-sm text-muted-foreground mb-4">Distribution of live trek packages by level.</p>
-            <ChartContainer config={difficultyChartConfig} className="h-[230px] w-full">
-              <BarChart data={difficultyData} margin={{ left: 8, right: 8, top: 8 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="level" tickLine={false} axisLine={false} />
-                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                <Bar dataKey="total" radius={8} fill="var(--color-total)" />
-              </BarChart>
-            </ChartContainer>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.65 }}
-            className="rounded-2xl border border-border bg-card p-6 shadow-sm"
-          >
-            <h2 className="font-heading text-xl mb-1">Notice Types</h2>
-            <p className="text-sm text-muted-foreground mb-4">Current notice mix by message category.</p>
-            <ChartContainer config={noticeChartConfig} className="h-[230px] w-full">
-              <PieChart>
-                <ChartTooltip cursor={false} content={<ChartTooltipContent nameKey="name" />} />
-                <Pie data={noticeTypeData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={82}>
-                  {noticeTypeData.map((item) => (
-                    <Cell key={item.name} fill={item.fill} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ChartContainer>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.75 }}
-            className="rounded-2xl border border-border bg-card p-6 shadow-sm"
-          >
-            <h2 className="font-heading text-xl mb-4">Key Metrics</h2>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-xl bg-muted/20 px-4 py-3">
-                <span className="text-sm text-muted-foreground">Featured ratio</span>
-                <span className="text-sm font-semibold">{featuredRatio}%</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-muted/20 px-4 py-3">
-                <span className="text-sm text-muted-foreground">Average trek price</span>
-                <span className="text-sm font-semibold">${averagePrice.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-muted/20 px-4 py-3">
-                <span className="text-sm text-muted-foreground">Total highlights</span>
-                <span className="text-sm font-semibold">{totalHighlights}</span>
-              </div>
+            <div className={`w-14 h-14 rounded-2xl ${stat.bgColor} flex items-center justify-center mb-6`}>
+              <stat.icon className={`w-7 h-7 ${stat.color}`} />
             </div>
+            <div className="text-4xl font-bold mb-1 tracking-tight">{stat.value}</div>
+            <div className="text-sm text-muted-foreground font-medium uppercase tracking-widest">{stat.label}</div>
           </motion.div>
-        </div>
+        ))}
+      </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-6 mb-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.82 }}
-            className="rounded-2xl border border-border bg-card p-6 shadow-sm"
-          >
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="font-heading text-xl mb-1">Realtime Website Analytics</h2>
-                <p className="text-sm text-muted-foreground">Live page-views from your public website (last 24h).</p>
-              </div>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">Live</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-              <div className="rounded-xl bg-muted/20 px-4 py-3">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Views (24h)</div>
-                <div className="text-2xl font-semibold">{pageViews.length}</div>
-              </div>
-              <div className="rounded-xl bg-muted/20 px-4 py-3">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Last Hour</div>
-                <div className="text-2xl font-semibold">{viewsLastHour}</div>
-              </div>
-              <div className="rounded-xl bg-muted/20 px-4 py-3">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Unique Visitors</div>
-                <div className="text-2xl font-semibold">{activeSessions}</div>
-              </div>
-            </div>
-
-            <ChartContainer config={trafficChartConfig} className="h-[220px] w-full">
-              <BarChart data={hourlyViewData} margin={{ left: 6, right: 6, top: 8 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="hour" tickLine={false} axisLine={false} />
-                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                <Bar dataKey="views" fill="var(--color-views)" radius={7} />
-              </BarChart>
-            </ChartContainer>
-          </motion.div>
-
-          <div className="space-y-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.9 }}
-              className="rounded-2xl border border-border bg-card p-6 shadow-sm"
-            >
-              <h2 className="font-heading text-xl mb-1">Visitor Geography</h2>
-              <p className="text-sm text-muted-foreground mb-4">Where public page visitors are coming from.</p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                <div className="rounded-xl bg-muted/20 px-4 py-3">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Countries</div>
-                  <div className="text-2xl font-semibold">{countryCount}</div>
-                </div>
-                <div className="rounded-xl bg-muted/20 px-4 py-3">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Top Country</div>
-                  <div className="text-lg font-semibold line-clamp-1">{topCountry}</div>
-                </div>
-                <div className="rounded-xl bg-muted/20 px-4 py-3">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Top Location</div>
-                  <div className="text-lg font-semibold line-clamp-1">{topLocation}</div>
-                </div>
-                <div className="rounded-xl bg-muted/20 px-4 py-3">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Geo-tagged Views</div>
-                  <div className="text-2xl font-semibold">{pageViews.filter((event) => event.locationLabel || event.country || event.city).length}</div>
-                </div>
-              </div>
-
-              <ChartContainer config={geoChartConfig} className="h-[250px] w-full">
-                <BarChart data={locationRows} layout="vertical" margin={{ left: 8, right: 8, top: 8 }}>
-                  <CartesianGrid horizontal={false} />
-                  <XAxis type="number" tickLine={false} axisLine={false} />
-                  <YAxis dataKey="location" type="category" tickLine={false} axisLine={false} width={92} />
-                  <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                  <Bar dataKey="visits" fill="var(--color-visits)" radius={7} />
-                </BarChart>
-              </ChartContainer>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.98 }}
-              className="rounded-2xl border border-border bg-card p-6 shadow-sm"
-            >
-              <h2 className="font-heading text-xl mb-1">Top Pages</h2>
-              <p className="text-sm text-muted-foreground mb-4">Most visited routes from the past 24 hours.</p>
-
-              {topPageRows.length ? (
-                <div className="space-y-3">
-                  {topPageRows.map((item) => (
-                    <div key={item.path} className="flex items-center justify-between rounded-xl bg-muted/20 px-4 py-3 gap-3">
-                      <span className="text-sm truncate">{item.path}</span>
-                      <span className="text-sm font-semibold">{item.count}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-xl bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-                  No public page views tracked yet. Open your public pages to start seeing live analytics.
-                </div>
-              )}
-            </motion.div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-          {quickLinks.map((link, index) => (
-            <motion.div
-              key={link.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
-            >
-              <Link
-                to={link.link}
-                className="block bg-card rounded-2xl p-6 border border-border hover:border-accent hover:shadow-lg transition-all group"
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors">
-                    <link.icon className="w-6 h-6 text-accent" />
-                  </div>
-                  <h3 className="font-heading text-lg">{link.title}</h3>
-                </div>
-                <p className="text-sm text-muted-foreground">{link.description}</p>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.7 }}
-          className="bg-card rounded-2xl p-6 border border-border shadow-sm"
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Realtime Traffic */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="lg:col-span-2 glass-panel p-8"
         >
-          <div className="mb-4 flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="font-heading text-xl mb-1">Recent Treks</h2>
-              <p className="text-sm text-muted-foreground">Fast access to your newest or featured packages.</p>
+              <h2 className="font-heading text-2xl mb-1">Traffic Overview</h2>
+              <p className="text-sm text-muted-foreground">Realtime page views (last 24h)</p>
             </div>
-            <Link to="/admin/dashboard/treks" className="inline-flex items-center gap-2 text-sm text-accent hover:underline">
-              Manage all
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 bg-accent rounded-full" />
+                Views
+              </div>
+            </div>
           </div>
-          <div className="space-y-3">
-            {recentTreks.map((trek) => (
-              <div
-                key={trek.id}
-                className="flex items-center justify-between gap-4 rounded-xl border border-border bg-muted/20 p-3"
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-14 h-14 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-                    <img
-                      src={trek.image}
-                      alt={trek.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium line-clamp-1">{trek.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {trek.duration} • {trek.difficulty}
-                    </div>
-                  </div>
+          <div className="h-[300px] w-full">
+            <ChartContainer config={trafficChartConfig}>
+              <AreaChart data={hourlyViewData}>
+                <defs>
+                  <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#888" }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#888" }} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Area type="monotone" dataKey="views" stroke="hsl(var(--accent))" strokeWidth={3} fillOpacity={1} fill="url(#colorViews)" />
+              </AreaChart>
+            </ChartContainer>
+          </div>
+        </motion.div>
+
+        {/* Top Locations */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="glass-panel p-8"
+        >
+          <h2 className="font-heading text-2xl mb-6">Top Countries</h2>
+          <div className="space-y-6">
+            {countryRows.map((row, i) => (
+              <div key={row.country} className="space-y-2">
+                <div className="flex justify-between text-sm font-medium">
+                  <span>{row.country}</span>
+                  <span className="text-accent">{row.visits} views</span>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {trek.featured && (
-                    <span className="px-2 py-1 bg-accent/10 text-accent text-xs rounded-full flex items-center gap-1">
-                      <ShieldCheck className="h-3 w-3" />
-                      Featured
-                    </span>
-                  )}
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(row.visits / pageViews.length) * 100}%` }}
+                    className="h-full bg-accent"
+                  />
                 </div>
               </div>
             ))}
+            {countryRows.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground italic">
+                Waiting for traffic data...
+              </div>
+            )}
           </div>
         </motion.div>
+      </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.85 }}
-          className="rounded-2xl border border-border bg-card p-6 shadow-sm"
-        >
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <div>
-              <h2 className="font-heading text-xl mb-1">Activity Snapshot</h2>
-              <p className="text-sm text-muted-foreground">A quick read on what is live right now.</p>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Quick Management */}
+        <div className="lg:col-span-1 space-y-6">
+          <h3 className="font-heading text-xl">Quick Access</h3>
+          <div className="grid grid-cols-1 gap-4">
+            {quickLinks.map((link) => (
+              <Link
+                key={link.title}
+                to={link.link}
+                className="flex items-center gap-4 p-4 glass-card hover:bg-white/40 transition-all group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <link.icon className="w-5 h-5 text-accent" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold">{link.title}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{link.description}</div>
+                </div>
+              </Link>
+            ))}
           </div>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-xl bg-muted/20 px-4 py-3">
-              <span className="text-sm text-muted-foreground">Current notices</span>
-              <span className="text-sm font-semibold">{notices.length}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-muted/20 px-4 py-3">
-              <span className="text-sm text-muted-foreground">Open inquiries</span>
-              <span className="text-sm font-semibold">{openLeads}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-muted/20 px-4 py-3">
-              <span className="text-sm text-muted-foreground">Featured packages</span>
-              <span className="text-sm font-semibold">{treks.filter((t) => t.featured).length}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-muted/20 px-4 py-3">
-              <span className="text-sm text-muted-foreground">Live sync</span>
-              <span className="text-sm font-semibold text-emerald-600">Realtime enabled</span>
-            </div>
-          </div>
-        </motion.div>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 1 }}
-          className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-sm"
-        >
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <div>
-              <h2 className="font-heading text-xl mb-1">Recent Leads</h2>
-              <p className="text-sm text-muted-foreground">Latest booking, contact, and inquiry submissions.</p>
-            </div>
-            <Link to="/admin/dashboard/inquiries" className="inline-flex items-center gap-2 text-sm text-accent hover:underline">
-              Open inquiries
-              <ArrowRight className="h-4 w-4" />
+        {/* Recent Activity */}
+        <div className="lg:col-span-3 glass-panel p-8">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="font-heading text-2xl">Recent Leads</h2>
+            <Link to="/admin/dashboard/inquiries" className="text-accent hover:underline text-sm font-bold flex items-center gap-2">
+              View All <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-
-          {recentInquiries.length ? (
-            <div className="space-y-3">
-              {recentInquiries.map((item) => (
-                <div key={item.id} className="flex flex-col gap-2 rounded-xl bg-muted/20 px-4 py-3 md:flex-row md:items-center md:justify-between">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium line-clamp-1">{item.name} • {item.email}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-1">{item.trek || "General inquiry"}</div>
+          <div className="space-y-4">
+            {recentInquiries.map((inquiry) => (
+              <div key={inquiry.id} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
+                    <Users className="w-5 h-5 text-secondary" />
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="rounded-full bg-accent/10 px-2 py-1 text-accent">{item.inquiryType}</span>
-                    <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">{item.status}</span>
+                  <div>
+                    <div className="font-bold text-sm">{inquiry.name}</div>
+                    <div className="text-xs text-muted-foreground">{inquiry.email}</div>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-xl bg-muted/20 px-4 py-8 text-sm text-muted-foreground">
-              No leads submitted yet.
-            </div>
-          )}
-        </motion.div>
-      </motion.div>
+                <div className="text-right">
+                  <div className="text-[10px] font-bold uppercase tracking-widest mb-1">{inquiry.inquiryType}</div>
+                  <div className={`text-xs px-2 py-0.5 rounded-full inline-block ${
+                    inquiry.status === "new" ? "bg-accent/10 text-accent" : "bg-muted text-muted-foreground"
+                  }`}>
+                    {inquiry.status}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {recentInquiries.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                No inquiries received yet.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

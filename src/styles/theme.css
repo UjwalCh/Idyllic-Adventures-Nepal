@@ -120,6 +120,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-glass-background: var(--glass-background);
+  --color-glass-border: var(--glass-border);
 }
 
 @layer base {
@@ -185,5 +187,17 @@
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+
+  .glass-card {
+    @apply bg-glass-background backdrop-blur-[var(--glass-blur)] border border-glass-border shadow-xl;
+  }
+
+  .glass-navbar {
+    @apply bg-background/70 backdrop-blur-md border-b border-white/10 sticky top-0 z-50;
+  }
+
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl shadow-2xl;
   }
 }

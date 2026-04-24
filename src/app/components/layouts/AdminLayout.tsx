@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { LayoutDashboard, Mountain, Image, Bell, LogOut, MessageSquareText, Settings } from "lucide-react";
+import { LayoutDashboard, Mountain, Image, Bell, LogOut, MessageSquareText, Settings, BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getCurrentSession, signOutAdmin, subscribeToAuthChanges } from "../../data/auth";
 
@@ -61,7 +61,8 @@ export function AdminLayout() {
   const navItems = [
     { path: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { path: "/admin/dashboard/treks", icon: Mountain, label: "Treks" },
-    { path: "/admin/dashboard/images", icon: Image, label: "Images" },
+    { path: "/admin/dashboard/journal", icon: BookOpen, label: "Journal" },
+    { path: "/admin/dashboard/gallery", icon: Image, label: "Gallery" },
     { path: "/admin/dashboard/notices", icon: Bell, label: "Notices" },
     { path: "/admin/dashboard/inquiries", icon: MessageSquareText, label: "Inquiries" },
     { path: "/admin/dashboard/settings", icon: Settings, label: "Settings" },
