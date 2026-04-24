@@ -163,7 +163,8 @@ export function AdminInquiriesPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
       </motion.div>

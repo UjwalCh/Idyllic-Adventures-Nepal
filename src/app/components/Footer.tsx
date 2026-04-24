@@ -111,9 +111,6 @@ export function Footer() {
               )}
             </div>
           </div>
-              </a>
-            </div>
-          </div>
         </div>
 
         <div className="mt-12 pt-8 border-t border-primary-foreground/10 text-center text-sm text-primary-foreground/60">
