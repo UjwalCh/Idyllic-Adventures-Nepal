@@ -42,7 +42,7 @@ export function AboutPage() {
           className="absolute inset-0"
         >
           <ImageWithFallback
-            src="https://images.unsplash.com/photo-1544735716-392fe2489ffa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw5fHxOZXBhbCUyMEhpbWFsYXlhcyUyMG1vdW50YWlucyUyMEV2ZXJlc3QlMjB0cmVrfGVufDF8fHx8MTc3NjkyOTg0NHww&ixlib=rb-4.1.0&q=80&w=1080"
+            src={settings.about_hero_image || "https://images.unsplash.com/photo-1544735716-392fe2489ffa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw5fHxOZXBhbCUyMEhpbWFsYXlhcyUyMG1vdW50YWlucyUyMEV2ZXJlc3QlMjB0cmVrfGVufDF8fHx8MTc3NjkyOTg0NHww&ixlib=rb-4.1.0&q=80&w=1080"}
             alt="About Us"
             className="w-full h-full object-cover"
           />
@@ -78,22 +78,12 @@ export function AboutPage() {
               transition={{ duration: 0.8 }}
             >
               <h2 className="font-heading text-4xl mb-6">{settings.about_story_title || "My Story"}</h2>
-              <div className="space-y-4 text-muted-foreground leading-relaxed">
-                <p>
-                  Founded in 2010, Idyllic Adventures Nepal was built from a personal
-                  passion for the Himalayas and a desire to share their magnificence
-                  with fellow trekkers.
-                </p>
-                <p>
-                  Over the years, I have guided trekkers from around the globe through
-                  Nepal's most spectacular mountain trails, combining technical experience
-                  with deep local cultural knowledge.
-                </p>
-                <p>
-                  I believe in sustainable tourism that respects local communities and
-                  preserves the natural environment. Every trek I organize is designed to
-                  contribute responsibly to local livelihoods.
-                </p>
+              <div className="space-y-4 text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {settings.about_story_description || `Founded in 2010, Idyllic Adventures Nepal was built from a personal passion for the Himalayas and a desire to share their magnificence with fellow trekkers.
+
+Over the years, I have guided trekkers from around the globe through Nepal's most spectacular mountain trails, combining technical experience with deep local cultural knowledge.
+
+I believe in sustainable tourism that respects local communities and preserves the natural environment. Every trek I organize is designed to contribute responsibly to local livelihoods.`}
               </div>
             </motion.div>
 
@@ -105,7 +95,7 @@ export function AboutPage() {
               className="relative h-96 rounded-2xl overflow-hidden"
             >
               <ImageWithFallback
-                src="https://images.unsplash.com/photo-1701255136052-b33f78a886a4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxOZXBhbCUyMEhpbWFsYXlhcyUyMG1vdW50YWlucyUyMEV2ZXJlc3QlMjB0cmVrfGVufDF8fHx8MTc3NjkyOTg0NHww&ixlib=rb-4.1.0&q=80&w=1080"
+                src={settings.about_story_image || "https://images.unsplash.com/photo-1701255136052-b33f78a886a4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxOZXBhbCUyMEhpbWFsYXlhcyUyMG1vdW50YWlucyUyMEV2ZXJlc3QlMjB0cmVrfGVufDF8fHx8MTc3NjkyOTg0NHww&ixlib=rb-4.1.0&q=80&w=1080"}
                 alt="Solo Guide"
                 className="w-full h-full object-cover"
               />

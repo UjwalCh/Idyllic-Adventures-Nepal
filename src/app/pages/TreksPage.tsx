@@ -2,10 +2,11 @@ import { Link } from "react-router";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { ArrowRight, Filter } from "lucide-react";
-import { useTreks } from "../data/useRealtimeData";
+import { useSiteSettings, useTreks } from "../data/useRealtimeData";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 
 export function TreksPage() {
+  const { settings } = useSiteSettings();
   const [difficultyFilter, setDifficultyFilter] = useState<string>("All");
   const { treks } = useTreks();
 
@@ -21,7 +22,7 @@ export function TreksPage() {
       <section className="relative h-[50vh] overflow-hidden bg-primary">
         <div className="absolute inset-0 opacity-20">
           <ImageWithFallback
-            src="https://images.unsplash.com/photo-1592623171049-4be9e0f5a501?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw3fHxOZXBhbCUyMEhpbWFsYXlhcyUyMG1vdW50YWlucyUyMEV2ZXJlc3QlMjB0cmVrfGVufDF8fHx8MTc3NjkyOTg0NHww&ixlib=rb-4.1.0&q=80&w=1080"
+            src={settings.treks_hero_image || "https://images.unsplash.com/photo-1592623171049-4be9e0f5a501?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw3fHxOZXBhbCUyMEhpbWFsYXlhcyUyMG1vdW50YWlucyUyMEV2ZXJlc3QlMjB0cmVrfGVufDF8fHx8MTc3NjkyOTg0NHww&ixlib=rb-4.1.0&q=80&w=1080"}
             alt="Treks"
             className="w-full h-full object-cover"
           />
@@ -34,10 +35,10 @@ export function TreksPage() {
               transition={{ duration: 0.6 }}
             >
               <h1 className="font-heading text-5xl md:text-6xl text-primary-foreground mb-4">
-                Our Treks
+                {settings.treks_hero_title || "Our Treks"}
               </h1>
               <p className="text-lg text-primary-foreground/90 max-w-2xl">
-                Explore our curated collection of trekking adventures across the magnificent Himalayas of Nepal
+                {settings.treks_hero_description || "Explore our curated collection of trekking adventures across the magnificent Himalayas of Nepal"}
               </p>
             </motion.div>
           </div>

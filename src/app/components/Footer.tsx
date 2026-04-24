@@ -61,23 +61,56 @@ export function Footer() {
           <div>
             <h3 className="font-heading mb-4">Follow Us</h3>
             <div className="flex gap-4">
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 bg-primary-foreground/10 hover:bg-primary-foreground/20 rounded-lg transition-colors"
-                aria-label="Facebook"
-              >
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 bg-primary-foreground/10 hover:bg-primary-foreground/20 rounded-lg transition-colors"
-                aria-label="Instagram"
-              >
-                <Instagram className="w-5 h-5" />
+              {settings.social_facebook && (
+                <a
+                  href={settings.social_facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 bg-primary-foreground/10 hover:bg-primary-foreground/20 rounded-lg transition-colors"
+                  aria-label="Facebook"
+                >
+                  <Facebook className="w-5 h-5" />
+                </a>
+              )}
+              {settings.social_instagram && (
+                <a
+                  href={settings.social_instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 bg-primary-foreground/10 hover:bg-primary-foreground/20 rounded-lg transition-colors"
+                  aria-label="Instagram"
+                >
+                  <Instagram className="w-5 h-5" />
+                </a>
+              )}
+              {settings.social_twitter && (
+                <a
+                  href={settings.social_twitter}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 bg-primary-foreground/10 hover:bg-primary-foreground/20 rounded-lg transition-colors"
+                  aria-label="Twitter"
+                >
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.005 3.869H5.078z" />
+                  </svg>
+                </a>
+              )}
+              {settings.social_youtube && (
+                <a
+                  href={settings.social_youtube}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 bg-primary-foreground/10 hover:bg-primary-foreground/20 rounded-lg transition-colors"
+                  aria-label="YouTube"
+                >
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M21.582 6.186a2.684 2.684 0 00-1.884-1.892c-1.663-.448-8.324-.448-8.324-.448s-6.661 0-8.324.448A2.684 2.684 0 001.166 6.186C.714 7.857.714 12 .714 12s0 4.143.452 5.814a2.684 2.684 0 001.884 1.892c1.663.448 8.324.448 8.324.448s6.661 0 8.324-.448a2.684 2.684 0 001.884-1.892c.452-1.671.452-5.814.452-5.814s0-4.143-.452-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                  </svg>
+                </a>
+              )}
+            </div>
+          </div>
               </a>
             </div>
           </div>

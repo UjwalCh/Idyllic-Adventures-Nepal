@@ -84,9 +84,22 @@ export function AdminInquiriesPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {inquiries.map((inquiry) => (
-              <div key={inquiry.id} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            {inquiries.map((inquiry) => {
+              const bgClass =
+                inquiry.status === "new"
+                  ? "bg-white"
+                  : inquiry.status === "in_progress"
+                  ? "bg-yellow-50"
+                  : inquiry.status === "closed"
+                  ? "bg-red-50"
+                  : "bg-card";
+
+              return (
+                <div
+                  key={inquiry.id}
+                  className={`rounded-2xl border border-border p-5 shadow-sm ${bgClass}`}
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-accent/10 px-3 py-1 text-xs text-accent">

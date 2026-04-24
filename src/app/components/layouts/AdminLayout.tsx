@@ -72,7 +72,10 @@ export function AdminLayout() {
       <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col">
         <div className="p-6">
           <h1 className="text-2xl text-sidebar-primary">Idyllic Adventures</h1>
-          <p className="text-sm text-sidebar-foreground/60 mt-1">Admin Panel</p>
+          <a href="/" target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-sm text-sidebar-primary/80 border border-sidebar-primary/30 rounded px-2 py-1 hover:bg-sidebar-primary/10 transition-colors">
+            Visit Site ↗
+          </a>
+          <p className="text-sm text-sidebar-foreground/60 mt-2">Admin Panel</p>
         </div>
 
         <nav className="flex-1 px-3">

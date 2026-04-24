@@ -11,34 +11,79 @@ import {
   type SpamConfig,
 } from "../../data/supabaseData";
 
-const SITE_SETTING_FIELDS: Array<{ key: string; label: string; multiline?: boolean; placeholder?: string }> = [
-  { key: "location", label: "Location" },
-  { key: "phone_1", label: "Phone 1" },
-  { key: "phone_2", label: "Phone 2" },
-  { key: "email_main", label: "Main Email" },
-  { key: "email_booking", label: "Booking Email" },
-  { key: "whatsapp_number", label: "WhatsApp Number" },
-  { key: "nav_brand_name", label: "Navigation Brand Name" },
-  { key: "nav_brand_tagline", label: "Navigation Brand Tagline" },
-  { key: "home_hero_badge", label: "Home Hero Badge" },
-  { key: "home_hero_title_line1", label: "Home Hero Title Line 1" },
-  { key: "home_hero_title_line2", label: "Home Hero Title Line 2" },
-  { key: "home_hero_description", label: "Home Hero Description", multiline: true },
-  { key: "home_featured_title", label: "Home Featured Section Title" },
-  { key: "home_featured_subtitle", label: "Home Featured Section Subtitle", multiline: true },
-  { key: "home_cta_title", label: "Home Bottom CTA Title" },
-  { key: "home_cta_description", label: "Home Bottom CTA Description", multiline: true },
-  { key: "home_cta_button_label", label: "Home Bottom CTA Button Label" },
-  { key: "about_hero_title", label: "About Hero Title" },
-  { key: "about_hero_description", label: "About Hero Description", multiline: true },
-  { key: "about_story_title", label: "About Story Section Title" },
-  { key: "about_values_title", label: "About Values Section Title" },
-  { key: "about_values_subtitle", label: "About Values Section Subtitle", multiline: true },
-  { key: "about_guide_title", label: "About Guide Section Title" },
-  { key: "about_guide_subtitle", label: "About Guide Section Subtitle", multiline: true },
-  { key: "contact_hero_title", label: "Contact Hero Title" },
-  { key: "contact_hero_description", label: "Contact Hero Description", multiline: true },
-  { key: "footer_description", label: "Footer Description", multiline: true },
+const SITE_SETTING_CATEGORIES = [
+  {
+    category: "General Information",
+    fields: [
+      { key: "location", label: "Location" },
+      { key: "phone_1", label: "Phone 1" },
+      { key: "phone_2", label: "Phone 2" },
+      { key: "email_main", label: "Main Email" },
+      { key: "email_booking", label: "Booking Email" },
+      { key: "whatsapp_number", label: "WhatsApp Number" },
+      { key: "nav_brand_name", label: "Navigation Brand Name" },
+      { key: "nav_brand_tagline", label: "Navigation Brand Tagline" },
+    ]
+  },
+  {
+    category: "Social Links",
+    fields: [
+      { key: "social_facebook", label: "Facebook URL" },
+      { key: "social_instagram", label: "Instagram URL" },
+      { key: "social_twitter", label: "Twitter URL" },
+      { key: "social_youtube", label: "YouTube URL" },
+      { key: "footer_description", label: "Footer Description", multiline: true },
+    ]
+  },
+  {
+    category: "Home Page",
+    fields: [
+      { key: "home_hero_image", label: "Home Hero Image URL" },
+      { key: "home_hero_badge", label: "Home Hero Badge" },
+      { key: "home_hero_title_line1", label: "Hero Title Line 1" },
+      { key: "home_hero_title_line2", label: "Hero Title Line 2" },
+      { key: "home_hero_description", label: "Hero Description", multiline: true },
+      { key: "home_stats_years", label: "Stats: Years of Experience" },
+      { key: "home_stats_trekkers", label: "Stats: Happy Trekkers" },
+      { key: "home_stats_guides", label: "Stats: Expert Guides" },
+      { key: "home_featured_title", label: "Featured Section Title" },
+      { key: "home_featured_subtitle", label: "Featured Section Subtitle", multiline: true },
+      { key: "home_cta_title", label: "Bottom CTA Title" },
+      { key: "home_cta_description", label: "Bottom CTA Description", multiline: true },
+      { key: "home_cta_button_label", label: "Bottom CTA Button Label" },
+    ]
+  },
+  {
+    category: "About Page",
+    fields: [
+      { key: "about_hero_image", label: "About Hero Image URL" },
+      { key: "about_hero_title", label: "About Hero Title" },
+      { key: "about_hero_description", label: "About Hero Description", multiline: true },
+      { key: "about_story_title", label: "Story Section Title" },
+      { key: "about_story_description", label: "Story Section Text", multiline: true },
+      { key: "about_story_image", label: "Story Image URL" },
+      { key: "about_values_title", label: "Values Section Title" },
+      { key: "about_values_subtitle", label: "Values Section Subtitle", multiline: true },
+      { key: "about_guide_title", label: "Guide Section Title" },
+      { key: "about_guide_subtitle", label: "Guide Section Subtitle", multiline: true },
+    ]
+  },
+  {
+    category: "Contact Page",
+    fields: [
+      { key: "contact_hero_image", label: "Contact Hero Image URL" },
+      { key: "contact_hero_title", label: "Contact Hero Title" },
+      { key: "contact_hero_description", label: "Contact Hero Description", multiline: true },
+    ]
+  },
+  {
+    category: "Treks Page",
+    fields: [
+      { key: "treks_hero_image", label: "Treks Hero Image URL" },
+      { key: "treks_hero_title", label: "Treks Hero Title" },
+      { key: "treks_hero_description", label: "Treks Hero Description", multiline: true },
+    ]
+  }
 ];
 
 type SubmissionLog = {
@@ -158,26 +203,43 @@ export function AdminSettingsPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {SITE_SETTING_FIELDS.map((field) => (
-            <div key={field.key} className={field.multiline ? "md:col-span-2" : ""}>
-              <label className="mb-1 block text-sm text-muted-foreground">{field.label}</label>
-              {field.multiline ? (
-                <textarea
-                  value={siteSettings[field.key] ?? ""}
-                  onChange={(e) => updateField(field.key, e.target.value)}
-                  rows={3}
-                  className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm"
-                  placeholder={field.placeholder}
-                />
-              ) : (
-                <input
-                  value={siteSettings[field.key] ?? ""}
-                  onChange={(e) => updateField(field.key, e.target.value)}
-                  className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm"
-                  placeholder={field.placeholder}
-                />
-              )}
+        <div className="space-y-8 mt-6">
+          {SITE_SETTING_CATEGORIES.map((category) => (
+            <div key={category.category} className="border-t border-border pt-6 first:border-0 first:pt-0">
+              <h3 className="text-lg font-medium mb-4">{category.category}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+                {category.fields.map((field) => {
+                  const currentValue = siteSettings[field.key] ?? "";
+                  return (
+                    <div key={field.key} className={field.multiline ? "md:col-span-2" : ""}>
+                      <div className="mb-2">
+                        <label className="block text-sm font-semibold">{field.label}</label>
+                        {currentValue && (
+                          <div className="mt-1 text-xs text-muted-foreground bg-muted/30 p-2 rounded border border-border/50">
+                            <strong>Current:</strong> {currentValue}
+                          </div>
+                        )}
+                      </div>
+                      {field.multiline ? (
+                        <textarea
+                          value={currentValue}
+                          onChange={(e) => updateField(field.key, e.target.value)}
+                          rows={3}
+                          className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:ring-1 focus:ring-accent outline-none transition-all placeholder:text-muted-foreground/50"
+                          placeholder={`${field.label}...`}
+                        />
+                      ) : (
+                        <input
+                          value={currentValue}
+                          onChange={(e) => updateField(field.key, e.target.value)}
+                          className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:ring-1 focus:ring-accent outline-none transition-all placeholder:text-muted-foreground/50"
+                          placeholder={`${field.label}...`}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>

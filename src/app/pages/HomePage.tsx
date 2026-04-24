@@ -4,6 +4,7 @@ import { ArrowRight, Mountain, Users, Award, Shield } from "lucide-react";
 import { useNotices, useSiteSettings, useTreks } from "../data/useRealtimeData";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { trackWebsiteEvent } from "../data/supabaseData";
+import { LiveCounter } from "../components/ui/LiveCounter";
 
 export function HomePage() {
   const { treks } = useTreks();
@@ -37,7 +38,7 @@ export function HomePage() {
           className="absolute inset-0"
         >
           <ImageWithFallback
-            src="https://images.unsplash.com/photo-1690122601365-77d6ee21e998?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxMHx8TmVwYWwlMjBIaW1hbGF5YXMlMjBtb3VudGFpbnMlMjBFdmVyZXN0JTIwdHJla3xlbnwxfHx8fDE3NzY5Mjk4NDR8MA&ixlib=rb-4.1.0&q=80&w=1080"
+            src={settings.home_hero_image || "https://images.unsplash.com/photo-1690122601365-77d6ee21e998?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxMHx8TmVwYWwlMjBIaW1hbGF5YXMlMjBtb3VudGFpbnMlMjBFdmVyZXN0JTIwdHJla3xlbnwxfHx8fDE3NzY5Mjk4NDR8MA&ixlib=rb-4.1.0&q=80&w=1080"}
             alt="Himalayas"
             className="w-full h-full object-cover"
           />
@@ -91,13 +92,13 @@ export function HomePage() {
         <div className="container mx-auto px-4 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { icon: Mountain, label: "Years of Trek Leadership", value: "15+" },
-              { icon: Users, label: "Happy Trekkers", value: "2,500+" },
-              { icon: Award, label: "Years Experience", value: "14+" },
+              { icon: Mountain, label: "Years of Trek Leadership", value: settings.home_stats_years || "15+" },
+              { icon: Users, label: "Happy Trekkers", value: settings.home_stats_trekkers || "2,500+" },
+              { icon: Award, label: "Expert Guides", value: settings.home_stats_guides || "14+" },
               { icon: Shield, label: "Safety First", value: "100%" },
             ].map((stat, index) => (
               <motion.div
-                key={stat.label}
+                key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -107,7 +108,9 @@ export function HomePage() {
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-accent/10 rounded-full mb-4">
                   <stat.icon className="w-8 h-8 text-accent" />
                 </div>
-                <div className="font-heading text-3xl mb-1 text-primary">{stat.value}</div>
+                <div className="font-heading text-3xl mb-1 text-primary">
+                  <LiveCounter targetValue={stat.value} />
+                </div>
                 <div className="text-sm text-muted-foreground">{stat.label}</div>
               </motion.div>
             ))}
