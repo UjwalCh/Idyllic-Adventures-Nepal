@@ -34,7 +34,7 @@ export function AboutPage() {
 
   return (
     <div className="min-h-screen">
-      <section className="relative h-[50vh] overflow-hidden">
+      <section className="relative h-[50dvh] min-h-[400px] overflow-hidden">
         <motion.div
           initial={{ scale: 1.1 }}
           animate={{ scale: 1 }}

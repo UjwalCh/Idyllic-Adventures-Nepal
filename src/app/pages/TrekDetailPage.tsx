@@ -43,7 +43,7 @@ export function TrekDetailPage() {
 
   return (
     <div className="min-h-screen">
-      <section className="relative h-[60vh] overflow-hidden">
+      <section className="relative h-[60dvh] min-h-[400px] overflow-hidden">
         <motion.div
           initial={{ scale: 1.1 }}
           animate={{ scale: 1 }}
@@ -135,30 +135,68 @@ export function TrekDetailPage() {
                 </motion.div>
               )}
 
+              {trek.gallery && trek.gallery.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                >
+                  <h2 className="font-heading text-3xl mb-6">Experience the Journey</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {trek.gallery.map((image, index) => (
+                      <motion.div
+                        key={index}
+                        whileHover={{ scale: 1.02 }}
+                        className="aspect-square rounded-2xl overflow-hidden cursor-pointer border border-border"
+                      >
+                        <ImageWithFallback
+                          src={image}
+                          alt={`${trek.title} gallery ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
               {trek.itinerary.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                 >
-                  <h2 className="font-heading text-3xl mb-6">Itinerary</h2>
-                  <div className="space-y-6">
-                    {trek.itinerary.map((day) => (
-                      <div
-                        key={day.day}
-                        className="flex gap-6 pb-6 border-b border-border last:border-0"
-                      >
-                        <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-accent text-accent-foreground rounded-full flex items-center justify-center">
-                            <span className="text-sm">Day {day.day}</span>
+                  <h2 className="font-heading text-4xl mb-8">The Journey</h2>
+                  <div className="relative pl-6 md:pl-0">
+                    <div className="hidden md:block absolute left-[50%] top-0 bottom-0 w-px bg-border -translate-x-1/2" />
+                    <div className="md:hidden absolute left-[15px] top-0 bottom-0 w-px bg-border" />
+                    <div className="space-y-12">
+                      {trek.itinerary.map((day, i) => (
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          whileInView={{ opacity: 1, y: 0 }}
+                          viewport={{ once: true, margin: "-100px" }}
+                          transition={{ delay: 0.1 }}
+                          key={day.day}
+                          className={`relative flex items-center md:justify-between w-full ${
+                            i % 2 === 0 ? "md:flex-row-reverse" : "md:flex-row"
+                          }`}
+                        >
+                          <div className="hidden md:block w-5/12" />
+                          <div className="absolute left-[-21px] md:left-1/2 md:-translate-x-1/2 w-10 h-10 rounded-full bg-background border-2 border-accent flex items-center justify-center z-10 shadow-lg shadow-accent/20">
+                            <span className="text-xs font-bold text-accent">{day.day}</span>
                           </div>
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-heading text-lg mb-2">{day.title}</h3>
-                          <p className="text-muted-foreground">{day.description}</p>
-                        </div>
-                      </div>
-                    ))}
+                          <div className="w-full md:w-5/12 pl-8 md:pl-0">
+                            <div className="glass-card p-6 rounded-2xl hover:-translate-y-1 transition-transform duration-300">
+                              <h3 className="font-heading text-xl mb-3 text-primary">{day.title}</h3>
+                              <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
+                                {day.description}
+                              </p>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -236,6 +274,23 @@ export function TrekDetailPage() {
           </motion.div>
         </div>
       </section>
+
+      {/* Mobile Sticky CTA */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-xl border-t border-border z-40 flex items-center justify-between gap-4">
+        <div className="flex-1">
+          <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Starting from</div>
+          <div className="font-heading text-xl text-accent leading-none">{trek.price}</div>
+        </div>
+        <Link
+          to={`/contact?type=booking&source=mobile-sticky&trek=${encodeURIComponent(trek.title)}`}
+          onClick={() => {
+            void trackWebsiteEvent("cta_click", `book_now_mobile:${trek.id}`);
+          }}
+          className="flex-[1.5] px-6 py-3 bg-accent text-accent-foreground rounded-xl font-bold hover:bg-accent/90 transition-colors text-center shadow-lg shadow-accent/20"
+        >
+          Book Now
+        </Link>
+      </div>
     </div>
   );
 }

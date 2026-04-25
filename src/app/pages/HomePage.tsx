@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { motion, useScroll, useTransform } from "motion/react";
 import { ArrowRight, Mountain, Users, Award, Shield } from "lucide-react";
-import { useNotices, useSiteSettings, useTreks } from "../data/useRealtimeData";
+import { useSiteSettings, useTreks } from "../data/useRealtimeData";
 import ImageWithFallback from "../components/figma/ImageWithFallback";
 import { trackWebsiteEvent } from "../data/supabaseData";
 import { LiveCounter } from "../components/ui/LiveCounter";
@@ -9,27 +9,11 @@ import ParallaxHero from "../components/ui/ParallaxHero";
 
 export function HomePage() {
   const { treks } = useTreks();
-  const { notices } = useNotices();
   const { settings } = useSiteSettings();
   const featuredTreks = treks.filter((trek) => trek.featured);
 
   return (
     <div className="min-h-screen">
-      {notices.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-secondary/10 border-b border-secondary/20 relative z-50"
-        >
-          <div className="container mx-auto px-4 lg:px-8 py-3">
-            {notices.map((notice) => (
-              <p key={notice.id} className="text-sm text-center">
-                <span className="font-semibold">{notice.title}:</span> {notice.message}
-              </p>
-            ))}
-          </div>
-        </motion.div>
-      )}
 
       <ParallaxHero
         badge={settings.home_hero_badge || "Explore the Himalayas"}
@@ -59,7 +43,7 @@ export function HomePage() {
             onClick={() => {
               void trackWebsiteEvent("cta_click", "home-hero-contact");
             }}
-            className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md rounded-lg transition-all border border-white/20 shadow-lg"
+            className="px-8 py-4 bg-white hover:bg-white/90 text-primary rounded-lg transition-all border border-white/20 shadow-lg font-bold"
           >
             Contact Us
           </Link>
@@ -177,7 +161,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="py-40 relative overflow-hidden bg-primary text-primary-foreground">
+      <section className="py-40 relative overflow-hidden bg-[#020617] text-white">
         <div className="absolute inset-0 z-0 overflow-hidden">
            <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-accent/20 rounded-full blur-[120px] animate-pulse" />
            <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-secondary/10 rounded-full blur-[140px] animate-pulse [animation-delay:2s]" />

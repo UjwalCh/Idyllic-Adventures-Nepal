@@ -23,7 +23,7 @@ export default function ParallaxHero({ title, subtitle, badge, image, video, chi
   const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   return (
-    <section ref={ref} className="relative h-screen overflow-hidden flex items-center justify-center">
+    <section ref={ref} className="relative min-h-[100dvh] h-[100dvh] overflow-hidden flex items-center justify-center">
       {/* Background Layer */}
       <motion.div style={{ y: backgroundY }} className="absolute inset-0 z-0">
         {video ? (
@@ -49,16 +49,16 @@ export default function ParallaxHero({ title, subtitle, badge, image, video, chi
       {/* Content Layer */}
       <motion.div 
         style={{ y: textY, opacity }}
-        className="relative z-10 container mx-auto px-4 lg:px-8 text-center"
+        className="relative z-10 container mx-auto px-4 lg:px-8 text-center pt-32 pb-24"
       >
         {badge && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="inline-block px-4 py-2 bg-secondary/90 text-primary rounded-full mb-6 backdrop-blur-md border border-white/20"
+            className="inline-block px-6 py-2 bg-secondary/90 text-[#020617] rounded-full mb-6 backdrop-blur-md border border-white/20 shadow-xl"
           >
-            <span className="text-sm font-medium tracking-wide uppercase">{badge}</span>
+            <span className="text-sm font-bold tracking-[0.2em] uppercase">{badge}</span>
           </motion.div>
         )}
         
@@ -76,7 +76,7 @@ export default function ParallaxHero({ title, subtitle, badge, image, video, chi
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
-            className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto mb-10 font-light leading-relaxed"
+            className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto mb-12 font-light leading-relaxed"
           >
             {subtitle}
           </motion.p>
@@ -86,13 +86,14 @@ export default function ParallaxHero({ title, subtitle, badge, image, video, chi
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.8 }}
+          className="flex flex-wrap justify-center gap-6"
         >
           {children}
         </motion.div>
       </motion.div>
 
       {/* Dynamic Overlay Elements */}
-      <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-background to-transparent z-20" />
+      <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-background to-transparent z-20" />
     </section>
   );
 }

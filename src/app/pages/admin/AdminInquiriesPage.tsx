@@ -87,12 +87,17 @@ export function AdminInquiriesPage() {
             {inquiries.map((inquiry) => {
               const bgClass =
                 inquiry.status === "new"
-                  ? "bg-white"
+                  ? "bg-card"
                   : inquiry.status === "in_progress"
-                  ? "bg-yellow-50"
+                  ? "bg-amber-500/10 border-amber-500/20"
                   : inquiry.status === "closed"
-                  ? "bg-red-50"
+                  ? "bg-red-500/10 border-red-500/20"
                   : "bg-card";
+
+              const statusTextColor = 
+                inquiry.status === "in_progress" ? "text-amber-600 dark:text-amber-400" :
+                inquiry.status === "closed" ? "text-red-600 dark:text-red-400" :
+                "text-foreground";
 
               return (
                 <div
@@ -131,7 +136,11 @@ export function AdminInquiriesPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl bg-muted/20 p-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                    <div className={`rounded-xl p-3 text-sm whitespace-pre-wrap transition-colors ${statusTextColor} ${
+                      inquiry.status === "in_progress" ? "bg-amber-500/5" : 
+                      inquiry.status === "closed" ? "bg-red-500/5" : 
+                      "bg-muted/20"
+                    }`}>
                       {inquiry.message}
                     </div>
                   </div>

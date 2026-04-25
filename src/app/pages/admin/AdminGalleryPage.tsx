@@ -37,8 +37,9 @@ export function AdminGalleryPage() {
       const publicUrl = await uploadImage(file, GALLERY_IMAGES_BUCKET);
       setFormState(prev => ({ ...prev, url: publicUrl }));
       toast.success("Image uploaded successfully!");
-    } catch (err) {
-      toast.error("Upload failed. Please check if the bucket exists.");
+    } catch (err: any) {
+      console.error("Gallery Upload Error:", err);
+      toast.error(`Upload failed: ${err.message || "Please check if the bucket exists."}`);
     } finally {
       setIsUploading(false);
     }

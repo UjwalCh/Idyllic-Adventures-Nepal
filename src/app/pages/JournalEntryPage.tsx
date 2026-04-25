@@ -43,7 +43,7 @@ export function JournalEntryPage() {
   return (
     <article className="min-h-screen bg-background pb-32">
       {/* Hero Header */}
-      <section className="relative h-[70vh] min-h-[500px] overflow-hidden">
+      <section className="relative h-[70dvh] min-h-[500px] overflow-hidden">
         <ImageWithFallback
           src={entry.image || "https://images.unsplash.com/photo-1544735716-392fe2489ffa"}
           alt={entry.title}

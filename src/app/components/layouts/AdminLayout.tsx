@@ -1,13 +1,39 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { LayoutDashboard, Mountain, Image, Bell, LogOut, MessageSquareText, Settings, BookOpen } from "lucide-react";
+import { 
+  LayoutDashboard, 
+  Mountain, 
+  Image, 
+  Bell, 
+  LogOut, 
+  MessageSquareText, 
+  Settings, 
+  BookOpen,
+  Moon,
+  Sun,
+  Monitor
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { getCurrentSession, signOutAdmin, subscribeToAuthChanges } from "../../data/auth";
+import { useTheme, ThemeProvider } from "next-themes";
+import { Toaster } from "../ui/sonner";
+import { useSiteSettings } from "../../data/useRealtimeData";
 
 export function AdminLayout() {
+  return (
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="idyllic-admin-theme">
+      <AdminLayoutContent />
+      <Toaster position="top-right" />
+    </ThemeProvider>
+  );
+}
+
+function AdminLayoutContent() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { settings } = useSiteSettings();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     let mounted = true;
@@ -19,14 +45,14 @@ export function AdminLayout() {
 
         if (!session) {
           setIsAuthenticated(false);
-          navigate("/admin");
+          navigate("/managepage");
         } else {
           setIsAuthenticated(true);
         }
       } catch {
         if (!mounted) return;
         setIsAuthenticated(false);
-        navigate("/admin");
+        navigate("/managepage");
       }
       setCheckingAuth(false);
     }
@@ -51,7 +77,7 @@ export function AdminLayout() {
 
   const handleLogout = async () => {
     await signOutAdmin();
-    navigate("/admin");
+    navigate("/managepage");
   };
 
   if (checkingAuth || !isAuthenticated) {
@@ -59,24 +85,62 @@ export function AdminLayout() {
   }
 
   const navItems = [
-    { path: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { path: "/admin/dashboard/treks", icon: Mountain, label: "Treks" },
-    { path: "/admin/dashboard/journal", icon: BookOpen, label: "Journal" },
-    { path: "/admin/dashboard/gallery", icon: Image, label: "Gallery" },
-    { path: "/admin/dashboard/notices", icon: Bell, label: "Notices" },
-    { path: "/admin/dashboard/inquiries", icon: MessageSquareText, label: "Inquiries" },
-    { path: "/admin/dashboard/settings", icon: Settings, label: "Settings" },
+    { path: "/managepage/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { path: "/managepage/dashboard/treks", icon: Mountain, label: "Treks" },
+    { path: "/managepage/dashboard/journal", icon: BookOpen, label: "Journal" },
+    { path: "/managepage/dashboard/gallery", icon: Image, label: "Gallery" },
+    { path: "/managepage/dashboard/notices", icon: Bell, label: "Notices" },
+    { path: "/managepage/dashboard/inquiries", icon: MessageSquareText, label: "Inquiries" },
+    { path: "/managepage/dashboard/settings", icon: Settings, label: "Settings" },
   ];
 
   return (
     <div className="min-h-screen bg-sidebar flex">
       <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col">
         <div className="p-6">
-          <h1 className="text-2xl text-sidebar-primary">Idyllic Adventures</h1>
-          <a href="/" target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-sm text-sidebar-primary/80 border border-sidebar-primary/30 rounded px-2 py-1 hover:bg-sidebar-primary/10 transition-colors">
-            Visit Site ↗
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-16 h-16 flex items-center justify-center overflow-hidden transition-transform hover:scale-110">
+               {settings.site_logo ? (
+                 <img src={settings.site_logo} alt="Logo" className="w-full h-full object-contain" />
+               ) : (
+                 <Mountain className="w-10 h-10 text-accent" />
+               )}
+            </div>
+            <div>
+              <h1 className="text-xl font-heading text-sidebar-foreground tracking-tight font-bold leading-tight">Idyllic Adventures</h1>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-accent font-bold opacity-80">NEPAL</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-1 p-0.5 bg-white/5 rounded-lg border border-white/10">
+              {[
+                { id: "light", icon: Sun },
+                { id: "dark", icon: Moon },
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTheme(t.id)}
+                  className={`p-1.5 rounded-md transition-all ${
+                    theme === t.id ? "bg-accent text-white" : "text-sidebar-foreground/40 hover:text-sidebar-foreground"
+                  }`}
+                >
+                  <t.icon className="w-3.5 h-3.5" />
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/40 font-bold mb-6">Admin Panel</p>
+          
+          <a 
+            href="/" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-accent text-white rounded-xl text-sm font-bold shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
+            <Monitor className="w-4 h-4" />
+            <span>Visit Live Site</span>
           </a>
-          <p className="text-sm text-sidebar-foreground/60 mt-2">Admin Panel</p>
         </div>
 
         <nav className="flex-1 px-3">
@@ -87,9 +151,9 @@ export function AdminLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all font-bold text-sm tracking-wide ${
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-lg shadow-black/10 scale-[1.02]"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                 }`}
               >
@@ -99,6 +163,7 @@ export function AdminLayout() {
             );
           })}
         </nav>
+
 
         <div className="p-3 border-t border-sidebar-border">
           <button
@@ -117,3 +182,4 @@ export function AdminLayout() {
     </div>
   );
 }
+

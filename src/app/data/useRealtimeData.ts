@@ -142,14 +142,29 @@ export function useInquiries() {
 }
 
 export function useSiteSettings() {
-  const [settings, setSettings] = useState<SiteSettings>({});
+  const [settings, setSettings] = useState<SiteSettings>(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("idyllic_site_settings");
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch {
+          return {};
+        }
+      }
+    }
+    return {};
+  });
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [error, setError] = useState<string | null>(null);
 
-  const loadSettings = useCallback(async () => {
+  const loadSettings = useCallback(async (force = false) => {
     try {
-      const data = await getSiteSettings();
+      const data = await getSiteSettings(force);
       setSettings(data);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("idyllic_site_settings", JSON.stringify(data));
+      }
       setError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to fetch site settings";
@@ -162,7 +177,7 @@ export function useSiteSettings() {
   useEffect(() => {
     void loadSettings();
     const unsubscribe = subscribeToSiteSettings(() => {
-      void loadSettings();
+      void loadSettings(true);
     });
     return unsubscribe;
   }, [loadSettings]);
@@ -178,7 +193,13 @@ export function useJournal(onlyPublished = true) {
   const loadEntries = useCallback(async () => {
     try {
       const data = await fetchJournalEntries(onlyPublished);
-      setEntries(data);
+      if (data.length > 0) {
+        setEntries(data);
+      } else {
+        // Fallback to mock data for a better "WOW" factor if DB is empty
+        const { mockJournalEntries } = await import("./mockData");
+        setEntries(mockJournalEntries.filter(e => !onlyPublished || e.published));
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch journal entries");

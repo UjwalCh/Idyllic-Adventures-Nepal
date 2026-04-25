@@ -16,17 +16,22 @@ export function GalleryPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <section className="relative py-32 overflow-hidden bg-primary text-white">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-accent rounded-full blur-[120px]" />
+      <section className="relative h-[50dvh] min-h-[400px] overflow-hidden flex items-center justify-center">
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=2000" 
+            className="w-full h-full object-cover" 
+            alt="Himalayan Moments" 
+          />
+          <div className="absolute inset-0 bg-black/50" />
         </div>
-        <div className="container mx-auto px-4 lg:px-8 relative z-10 text-center">
+        <div className="container mx-auto px-4 lg:px-8 relative z-10 text-center text-white">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <h1 className="font-heading text-6xl md:text-8xl mb-6">Himalayan Moments</h1>
-            <p className="text-xl text-white/70 max-w-2xl mx-auto font-light leading-relaxed">
+            <h1 className="font-heading text-6xl md:text-7xl mb-6 text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]">Himalayan Moments</h1>
+            <p className="text-xl text-white max-w-2xl mx-auto font-light leading-relaxed drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
               A collection of memories captured through the lens of our guides and trekkers across the majestic landscapes of Nepal.
             </p>
           </motion.div>

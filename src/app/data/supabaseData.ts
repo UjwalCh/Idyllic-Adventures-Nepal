@@ -38,9 +38,9 @@ let settingsCache: SiteSettings | null = null;
 let settingsCacheTime = 0;
 const SETTINGS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-export async function getSiteSettings(): Promise<SiteSettings> {
+export async function getSiteSettings(forceRefresh = false): Promise<SiteSettings> {
   const now = Date.now();
-  if (settingsCache && now - settingsCacheTime < SETTINGS_CACHE_DURATION) {
+  if (!forceRefresh && settingsCache && now - settingsCacheTime < SETTINGS_CACHE_DURATION) {
     return settingsCache;
   }
 
@@ -387,8 +387,8 @@ export async function revertAdminAction(logId: string): Promise<void> {
   });
 }
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
@@ -631,6 +631,9 @@ export async function toggleFeaturedTrek(
     return;
   }
 
+  // Get previous state
+  const { data: previousTrek } = await supabase.from("treks").select("*").eq("id", id).single();
+
   const { error } = await supabase
     .from("treks")
     .update({ featured })
@@ -638,6 +641,17 @@ export async function toggleFeaturedTrek(
 
   if (error) {
     throw error;
+  }
+
+  if (previousTrek) {
+    await logAdminAction({
+      action_type: "update",
+      entity_type: "treks",
+      entity_id: id,
+      details: `Toggled featured status to ${featured} for trek: ${previousTrek.title}`,
+      previous_data: previousTrek,
+      new_data: { ...previousTrek, featured },
+    });
   }
 }
 
@@ -751,6 +765,27 @@ export async function deleteNotice(id: string): Promise<void> {
       details: `Deleted notice: ${previousNotice.title}`,
       previous_data: previousNotice,
       new_data: null,
+    });
+  }
+}
+
+export async function updateNotice(id: string, noticeUpdate: Partial<Omit<Notice, "id">>): Promise<void> {
+  if (!supabase) return;
+
+  // Get previous notice
+  const { data: previousNotice } = await supabase.from("notices").select("*").eq("id", id).single();
+
+  const { error } = await supabase.from("notices").update(noticeUpdate).eq("id", id);
+  if (error) throw error;
+
+  if (previousNotice) {
+    await logAdminAction({
+      action_type: "update",
+      entity_type: "notices",
+      entity_id: id,
+      details: `Updated notice: ${noticeUpdate.title || previousNotice.title}`,
+      previous_data: previousNotice,
+      new_data: { ...previousNotice, ...noticeUpdate },
     });
   }
 }
@@ -1370,4 +1405,56 @@ export function subscribeToGallery(onChange: () => void): () => void {
     .subscribe();
 
   return () => { void supabase.removeChannel(channel); };
+}
+
+/**
+ * Verifies if the required storage buckets exist and attempts to create them if possible.
+ * Returns a list of buckets that are missing or inaccessible.
+ */
+export async function checkAndSetupStorage(): Promise<{
+  missing: string[];
+  errors: Record<string, string>;
+}> {
+  if (!supabase) return { missing: [], errors: {} };
+
+  const requiredBuckets = [TREK_IMAGES_BUCKET, JOURNAL_IMAGES_BUCKET, GALLERY_IMAGES_BUCKET];
+  const missing: string[] = [];
+  const errors: Record<string, string> = {};
+
+  for (const bucket of requiredBuckets) {
+    try {
+      const { data: bucketData, error: getError } = await supabase.storage.getBucket(bucket);
+      
+      // If we can see the bucket, it's fine
+      if (bucketData) continue;
+
+      // If we get an error, check if it's because it's missing (404)
+      // Note: Supabase storage errors sometimes come in different shapes
+      const errorMsg = getError?.message?.toLowerCase() || "";
+      const isMissing = errorMsg.includes("not found") || (getError as any)?.status === 404;
+
+      if (isMissing) {
+        // Attempt to create it (will only work if service role or specific RLS allow it)
+        const { error: createError } = await supabase.storage.createBucket(bucket, {
+          public: true,
+          fileSizeLimit: 5242880, // 5MB
+        });
+
+        if (createError) {
+          missing.push(bucket);
+          errors[bucket] = createError.message;
+        }
+      } else if (getError) {
+        // It's a permission error or something else, but the bucket likely exists
+        // console.warn(`Storage check for ${bucket} returned: ${getError.message}`);
+      }
+    } catch (err: any) {
+      // Catch-all, but don't alarm if it's just a permission issue
+      if (err.message?.toLowerCase().includes("not found")) {
+        missing.push(bucket);
+      }
+    }
+  }
+
+  return { missing, errors };
 }

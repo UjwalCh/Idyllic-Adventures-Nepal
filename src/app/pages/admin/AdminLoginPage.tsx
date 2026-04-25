@@ -5,9 +5,11 @@ import { Mountain, Lock, User } from "lucide-react";
 import { toast } from "sonner";
 import { isSupabaseConfigured } from "../../data/supabaseData";
 import { signInAdmin } from "../../data/auth";
+import { useSiteSettings } from "../../data/useRealtimeData";
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
+  const { settings } = useSiteSettings();
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -23,7 +25,7 @@ export function AdminLoginPage() {
       setSubmitting(true);
       await signInAdmin(credentials.email, credentials.password);
       toast.success("Login successful!");
-      navigate("/admin/dashboard");
+      navigate("/managepage/dashboard");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Invalid credentials");
     } finally {
@@ -46,8 +48,12 @@ export function AdminLoginPage() {
       >
         <div className="bg-card rounded-2xl shadow-2xl p-8 border border-border">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-xl mb-4">
-              <Mountain className="w-8 h-8 text-primary-foreground" />
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-2xl mb-4 overflow-hidden p-2">
+              {settings.site_logo ? (
+                <img src={settings.site_logo} alt="Logo" className="w-full h-full object-contain" />
+              ) : (
+                <Mountain className="w-10 h-10 text-primary" />
+              )}
             </div>
             <h1 className="font-heading text-3xl mb-2">Admin Portal</h1>
             <p className="text-muted-foreground">Idyllic Adventures Nepal</p>

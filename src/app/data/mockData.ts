@@ -12,6 +12,7 @@ export interface Trek {
   featured: boolean;
   highlights: string[];
   itinerary: { day: number; title: string; description: string }[];
+  gallery?: string[];
 }
 
 export interface Notice {
@@ -20,6 +21,20 @@ export interface Notice {
   message: string;
   date: string;
   type: "info" | "warning" | "success";
+}
+
+export interface JournalEntry {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  image: string;
+  category: string;
+  author: string;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const mockTreks: Trek[] = [
@@ -157,6 +172,48 @@ export const mockTreks: Trek[] = [
       "Perfect for families"
     ],
     itinerary: []
+  }
+];
+
+export const mockJournalEntries: JournalEntry[] = [
+  {
+    id: "j1",
+    title: "The Ultimate Guide to Everest Base Camp",
+    slug: "ultimate-guide-ebc",
+    excerpt: "Everything you need to know before embarking on the world's most famous trek, from gear to acclimatization.",
+    content: "Full content here...",
+    image: "https://images.unsplash.com/photo-1544735716-392fe2489ffa",
+    category: "Trekking Tips",
+    author: "Ujwal Chhetri",
+    published: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: "j2",
+    title: "Hidden Gems of the Langtang Valley",
+    slug: "hidden-gems-langtang",
+    excerpt: "Explore the less-traveled paths and ancient monasteries of the beautiful Langtang region.",
+    content: "Full content here...",
+    image: "https://images.unsplash.com/photo-1582297129188-46765796a92d",
+    category: "Cultural",
+    author: "Ujwal Chhetri",
+    published: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: "j3",
+    title: "Best Season for Himalayan Trekking",
+    slug: "best-season-himalayas",
+    excerpt: "Spring vs. Autumn: A detailed breakdown of the best times to visit the Himalayas for clear views.",
+    content: "Full content here...",
+    image: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b",
+    category: "Weather",
+    author: "Ujwal Chhetri",
+    published: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   }
 ];
 

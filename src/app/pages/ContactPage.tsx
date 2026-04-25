@@ -151,14 +151,14 @@ export function ContactPage() {
       <section className="relative py-20 bg-gradient-to-br from-primary via-primary to-accent overflow-hidden">
         <div className="absolute inset-0 opacity-20">
           <ImageWithFallback
-            src={settings.contact_hero_image || "https://images.unsplash.com/photo-1512100356356-de1b84283e18?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxOZXBhbCUyMEhpbWFsYXlhcyUyMG1vdW50YWlucyUyMEV2ZXJlc3QlMjB0cmVrfGVufDF8fHx8MTc3NjkyOTg0NHww&ixlib=rb-4.1.0&q=80&w=1080"}
+            src={settings.contact_hero_image || "https://images.unsplash.com/photo-1512100356356-de1b84283e18?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxOZXBhbCUyMEhpbWFsYXlhcyUyME1vdW50YWlucyUyMEV2ZXJlc3QlMjB0cmVrfGVufDF8fHx8MTc3NjkyOTg0NHww&ixlib=rb-4.1.0&q=80&w=1080"}
             alt="Contact Us"
             className="w-full h-full object-cover"
           />
         </div>
         <div className="container mx-auto px-4 lg:px-8 relative text-primary-foreground text-center">
-          <h1 className="font-heading text-5xl md:text-6xl mb-6">{settings.contact_hero_title || "Get in Touch"}</h1>
-          <p className="text-lg opacity-90 max-w-2xl mx-auto">
+          <h1 className="font-heading text-5xl md:text-6xl mb-6 text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]">{settings.contact_hero_title || "Get in Touch"}</h1>
+          <p className="text-lg text-white max-w-2xl mx-auto drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
             {settings.contact_hero_description || "Ready to start your Himalayan adventure? Contact me and I will help you plan the perfect trek."}
           </p>
         </div>

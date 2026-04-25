@@ -4,26 +4,23 @@ import { Calendar, User, Tag, ArrowRight } from "lucide-react";
 import { useJournal } from "../data/useRealtimeData";
 import ImageWithFallback from "../components/figma/ImageWithFallback";
 
+import ParallaxHero from "../components/ui/ParallaxHero";
+
 export function JournalPage() {
   const { entries, loading } = useJournal();
 
   return (
     <div className="min-h-screen bg-background">
-      <section className="relative py-32 overflow-hidden">
-        <div className="absolute inset-0 bg-primary/5 -skew-y-3 origin-top-left" />
-        <div className="container mx-auto px-4 lg:px-8 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center max-w-3xl mx-auto"
-          >
-            <h1 className="font-heading text-6xl md:text-7xl mb-6">Himalayan Journal</h1>
-            <p className="text-xl text-muted-foreground font-light leading-relaxed">
-              Stories from the high passes, local insights, and updates from our trekking adventures in the heart of Nepal.
-            </p>
-          </motion.div>
-        </div>
-      </section>
+      <ParallaxHero
+        badge="Journal"
+        title={
+          <span className="font-heading text-6xl md:text-8xl drop-shadow-2xl text-white">
+            Himalayan Journal
+          </span>
+        }
+        subtitle="Stories from the high passes, local insights, and updates from our trekking adventures in the heart of Nepal."
+        image="https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&q=80&w=2000"
+      />
 
       <section className="pb-32 container mx-auto px-4 lg:px-8">
         {loading ? (

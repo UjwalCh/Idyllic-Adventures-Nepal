@@ -46,6 +46,7 @@ type TrekFormState = {
   featured: boolean;
   highlightsText: string;
   itineraryText: string;
+  gallery: string[];
 };
 
 const defaultFormState: TrekFormState = {
@@ -61,6 +62,7 @@ const defaultFormState: TrekFormState = {
   featured: false,
   highlightsText: "",
   itineraryText: "",
+  gallery: [],
 };
 
 const fieldClassName =
@@ -75,7 +77,9 @@ export function AdminTreksPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDropActive, setIsDropActive] = useState(false);
   const [formState, setFormState] = useState<TrekFormState>(defaultFormState);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   const livePreview = useMemo<Trek>(() => {
     const itinerary = formState.itineraryText
@@ -224,6 +228,7 @@ export function AdminTreksPage() {
       featured: trek.featured,
       highlightsText: trek.highlights.join("\n"),
       itineraryText: trek.itinerary.map((day) => `${day.title} | ${day.description}`).join("\n"),
+      gallery: trek.gallery || [],
     });
     setIsFormOpen(true);
   };
@@ -251,6 +256,7 @@ export function AdminTreksPage() {
       featured: formState.featured,
       highlights: parseHighlights(formState.highlightsText),
       itinerary: parseItinerary(formState.itineraryText),
+      gallery: formState.gallery,
     };
 
     if (!payload.title || !payload.description || !payload.duration || !payload.maxAltitude || !payload.bestSeason || !payload.groupSize || !payload.price || !payload.image) {
@@ -332,11 +338,70 @@ export function AdminTreksPage() {
           </button>
         </div>
 
+        {/* Bulk Actions Bar */}
+        {selectedIds.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="sticky top-4 z-50 bg-primary text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-6 mb-8 border border-white/10"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center font-bold">
+                {selectedIds.length}
+              </div>
+              <span className="font-bold">Treks Selected</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => {
+                  if (confirm(`Feature ${selectedIds.length} treks?`)) {
+                    for (const id of selectedIds) await toggleFeaturedTrek(id, true);
+                    setSelectedIds([]);
+                    toast.success("Bulk update successful");
+                  }
+                }}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-bold transition-all"
+              >
+                Feature All
+              </button>
+              <button
+                onClick={async () => {
+                  if (confirm(`Delete ${selectedIds.length} treks permanently?`)) {
+                    for (const id of selectedIds) await deleteTrek(id);
+                    setSelectedIds([]);
+                    toast.success("Bulk delete successful");
+                  }
+                }}
+                className="px-4 py-2 bg-red-500/80 hover:bg-red-500 rounded-lg text-sm font-bold transition-all"
+              >
+                Delete Selected
+              </button>
+              <button
+                onClick={() => setSelectedIds([])}
+                className="p-2 hover:bg-white/10 rounded-full transition-all"
+              >
+                <Plus className="w-5 h-5 rotate-45" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-muted/50 border-b border-border">
                 <tr>
+                  <th className="px-6 py-4 text-left w-10">
+                    <input
+                      type="checkbox"
+                      className="rounded border-border"
+                      checked={selectedIds.length === treks.length && treks.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedIds(treks.map((t) => t.id));
+                        else setSelectedIds([]);
+                      }}
+                    />
+                  </th>
                   <th className="text-left px-6 py-4 text-sm">Trek</th>
                   <th className="text-left px-6 py-4 text-sm">Duration</th>
                   <th className="text-left px-6 py-4 text-sm">Difficulty</th>
@@ -347,7 +412,18 @@ export function AdminTreksPage() {
               </thead>
               <tbody>
                 {treks.map((trek) => (
-                  <tr key={trek.id} className="border-b border-border last:border-0">
+                  <tr key={trek.id} className={`border-b border-border last:border-0 transition-colors ${selectedIds.includes(trek.id) ? "bg-accent/5" : ""}`}>
+                    <td className="px-6 py-4">
+                      <input
+                        type="checkbox"
+                        className="rounded border-border"
+                        checked={selectedIds.includes(trek.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedIds((prev) => [...prev, trek.id]);
+                          else setSelectedIds((prev) => prev.filter((id) => id !== trek.id));
+                        }}
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
                         <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
@@ -368,14 +444,14 @@ export function AdminTreksPage() {
                     <td className="px-6 py-4 text-sm">{trek.duration}</td>
                     <td className="px-6 py-4">
                       <span
-                        className={`px-2 py-1 rounded text-xs ${
+                        className={`px-2 py-1 rounded text-xs font-medium ${
                           trek.difficulty === "Easy"
-                            ? "bg-green-100 text-green-700"
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                             : trek.difficulty === "Moderate"
-                            ? "bg-blue-100 text-blue-700"
+                            ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
                             : trek.difficulty === "Challenging"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-red-100 text-red-700"
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                            : "bg-red-500/10 text-red-600 dark:text-red-400"
                         }`}
                       >
                         {trek.difficulty}
@@ -652,6 +728,50 @@ export function AdminTreksPage() {
                       <label htmlFor="featured" className="text-sm">
                         Mark as featured trek
                       </label>
+                    </div>
+
+                    <div className="rounded-xl border border-border bg-muted/10 p-5 mt-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <ImageUp className="w-5 h-5 text-accent" />
+                          <h4 className="font-bold">Trek Gallery</h4>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => galleryInputRef.current?.click()}
+                          className="text-xs px-3 py-1.5 bg-accent/10 text-accent rounded-lg hover:bg-accent/20 font-bold"
+                        >
+                          Add Photos
+                        </button>
+                        <input
+                          ref={galleryInputRef}
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const files = Array.from(e.target.files || []);
+                            toast.loading(`Uploading ${files.length} photos...`);
+                            const urls = await Promise.all(files.map(f => uploadTrekImage(f)));
+                            setFormState(prev => ({ ...prev, gallery: [...prev.gallery, ...urls] }));
+                            toast.dismiss();
+                            toast.success("Gallery updated");
+                          }}
+                        />
+                      </div>
+                      <div className="grid grid-cols-4 gap-3">
+                        {formState.gallery.map((url, idx) => (
+                          <div key={idx} className="relative aspect-square rounded-lg overflow-hidden group border border-border">
+                            <img src={url} className="w-full h-full object-cover" />
+                            <button
+                              onClick={() => setFormState(prev => ({ ...prev, gallery: prev.gallery.filter((_, i) => i !== idx) }))}
+                              className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Plus className="w-3 h-3 rotate-45" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </section>

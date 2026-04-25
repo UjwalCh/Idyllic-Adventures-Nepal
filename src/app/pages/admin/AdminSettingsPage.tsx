@@ -28,21 +28,27 @@ import {
   ChevronRight,
   Phone,
   Mail,
+  ArrowRight,
+  Monitor,
+  Image as ImageIcon,
+  Settings,
+  Undo2,
+  Layout as LayoutIcon,
   MapPin,
   Facebook,
   Instagram,
   Youtube,
   Twitter,
-  Image as ImageIcon,
-  Undo2,
-  AlertCircle
+  AlertCircle,
+  Lock,
 } from "lucide-react";
 
 const TABS = [
   { id: "general", label: "General & Brand", icon: Info },
   { id: "home", label: "Home Page", icon: Layout },
   { id: "about", label: "About & Guide", icon: Info },
-  { id: "other", label: "Other Pages", icon: Globe },
+  { id: "other", label: "Other Pages", icon: Layout },
+  { id: "seo", label: "SEO & Meta", icon: Globe },
   { id: "security", label: "Security & Logs", icon: ShieldCheck },
   { id: "activity", label: "Activity Log", icon: History },
 ];
@@ -153,6 +159,33 @@ const SITE_SETTING_CATEGORIES = [
     ]
   },
   {
+    id: "seo",
+    category: "Search Engine Optimization",
+    sections: [
+      {
+        title: "Site-wide SEO",
+        fields: [
+          { key: "seo_title", label: "Main Site Title", placeholder: "e.g. Idyllic Adventures Nepal - Trekking Specialists" },
+          { key: "seo_description", label: "Meta Description", multiline: true, placeholder: "Describe your site for Google search results..." },
+          { key: "seo_keywords", label: "Keywords", placeholder: "trekking, nepal, himalayas, adventure" },
+          { key: "seo_share_image", label: "Social Media Share Image", isImage: true },
+        ]
+      }
+    ]
+  },
+  {
+    id: "security",
+    category: "Security",
+    sections: [
+      {
+        title: "Admin Access",
+        fields: [
+          { key: "admin_hotkeys", label: "Secret Hotkeys", placeholder: "e.g. Shift+A or Ctrl+Shift+M" },
+        ]
+      }
+    ]
+  },
+  {
     id: "other",
     category: "Other Pages",
     sections: [
@@ -176,6 +209,33 @@ const SITE_SETTING_CATEGORIES = [
   }
 ];
 
+// Provide defaults so the UI is never blank
+const DEFAULT_SITE_SETTINGS: Record<string, string> = {
+  nav_brand_name: "Idyllic Adventures",
+  nav_brand_tagline: "Explore. Experience. Enjoy.",
+  location: "Kathmandu, Nepal",
+  email_main: "info@idyllicadventuresnepal.com",
+  phone_1: "+977 1234567890",
+  home_hero_image: "https://images.unsplash.com/photo-1690122601365-77d6ee21e998?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+  home_hero_badge: "Explore the Himalayas",
+  home_hero_title_line1: "Discover Your",
+  home_hero_title_line2: "Idyllic Adventure",
+  home_hero_description: "Trek through the world's highest mountains with a dedicated local trek leader. Create memories that last a lifetime.",
+  home_stats_years: "15+",
+  home_stats_trekkers: "2,500+",
+  home_stats_guides: "14+",
+  home_featured_title: "Featured Treks",
+  home_featured_subtitle: "Handpicked adventures for the ultimate Himalayan experience",
+  home_cta_title: "Your Himalayan Story Starts Here",
+  home_cta_description: "Contact me today to start planning your bespoke journey. I will guide you through every pass and valley of the majestic Himalayas.",
+  home_cta_button_label: "Begin Your Adventure",
+  about_hero_title: "Our Story",
+  about_guide_name: "Ujwal Chhetri",
+  about_guide_role: "Lead Guide",
+  seo_title: "Idyllic Adventures Nepal",
+  admin_hotkeys: "Shift+A",
+};
+
 type SubmissionLog = {
   id: string;
   ip_address: string;
@@ -196,23 +256,39 @@ export function AdminSettingsPage() {
   const [logs, setLogs] = useState<SubmissionLog[]>([]);
   const { logs: adminLogs, refresh: refreshAdminLogs } = useAdminLogs(50);
   const [isReverting, setIsReverting] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const blockedCount24h = useMemo(() => logs.filter((item) => item.flagged).length, [logs]);
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [settingsData, spamData, logsData] = await Promise.all([
+      const [settingsData, spamData] = await Promise.all([
         getSiteSettings(),
         getSpamConfig(),
-        fetchSubmissionLogs(24),
       ]);
 
-      setSiteSettings(settingsData);
+      // Merge defaults with loaded data (ignore empty strings from DB)
+      const mergedSettings = { ...DEFAULT_SITE_SETTINGS };
+      Object.entries(settingsData || {}).forEach(([key, val]) => {
+        if (val) mergedSettings[key] = val;
+      });
+      setSiteSettings(mergedSettings);
       setSpamConfig(spamData);
-      setKeywordInput((spamData?.blocked_keywords ?? []).join(", "));
-      setLogs(logsData as SubmissionLog[]);
+      if (spamData && spamData.blocked_keywords) {
+        setKeywordInput(spamData.blocked_keywords.join(", "));
+      }
+
+      // Load logs separately so they don't block the settings UI if they fail
+      try {
+        const logsData = await fetchSubmissionLogs(24);
+        setLogs(logsData as SubmissionLog[]);
+      } catch (logError) {
+        console.warn("Failed to load submission logs:", logError);
+        setLogs([]);
+      }
     } catch (error) {
+      console.error("Failed to load settings:", error);
       toast.error("Failed to load settings");
     } finally {
       setLoading(false);
@@ -290,18 +366,24 @@ export function AdminSettingsPage() {
     <div className="p-8 max-w-6xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
         <div>
-          <h1 className="font-heading text-4xl text-primary mb-2">Settings</h1>
-          <p className="text-muted-foreground">Customize your website content, branding, and security.</p>
+          <div className="flex items-center gap-2 text-accent text-xs font-bold uppercase tracking-[0.2em] mb-2">
+            <Settings className="w-4 h-4" />
+            Configuration
+          </div>
+          <h1 className="font-heading text-5xl text-primary mb-2">Settings</h1>
+          <p className="text-muted-foreground">Customize your website content, branding, and security with live preview.</p>
         </div>
-        {activeTab !== "security" && (
-          <button
-            onClick={handleSaveSite}
-            disabled={savingSite}
-            className="flex items-center gap-2 px-8 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-accent transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
-          >
-            {savingSite ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-            <span>Save All Changes</span>
-          </button>
+        {activeTab !== "security" && activeTab !== "activity" && (
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <button
+              onClick={handleSaveSite}
+              disabled={savingSite}
+              className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-4 bg-primary text-primary-foreground rounded-2xl font-bold hover:bg-accent hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all shadow-2xl shadow-primary/20 disabled:opacity-50"
+            >
+              {savingSite ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+              <span className="text-lg">Apply All Changes</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -313,8 +395,8 @@ export function AdminSettingsPage() {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
               activeTab === tab.id 
-                ? "bg-white text-primary shadow-sm" 
-                : "text-muted-foreground hover:text-primary hover:bg-white/50"
+                ? "bg-primary text-primary-foreground shadow-sm" 
+                : "text-muted-foreground hover:text-primary hover:bg-muted"
             }`}
           >
             <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? "text-accent" : ""}`} />
@@ -369,27 +451,64 @@ export function AdminSettingsPage() {
                   </div>
                 )}
 
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-bold mb-2">Blocked Keywords</label>
-                    <textarea
-                      value={keywordInput}
-                      onChange={(e) => setKeywordInput(e.target.value)}
-                      className="w-full p-4 rounded-2xl border border-border bg-input-background focus:ring-2 focus:ring-accent outline-none min-h-[100px]"
-                      placeholder="Enter keywords separated by commas (e.g. crypto, casino, help)"
-                    />
-                  </div>
-                  {spamConfig && (
-                    <div>
-                      <label className="block text-sm font-bold mb-2">Max URLs per message</label>
-                      <input
-                        type="number"
-                        value={spamConfig.max_urls_allowed}
-                        onChange={(e) => setSpamConfig({ ...spamConfig, max_urls_allowed: Number(e.target.value) })}
-                        className="w-full p-4 rounded-2xl border border-border bg-input-background focus:ring-2 focus:ring-accent outline-none max-w-[200px]"
-                      />
+                <div className="space-y-12">
+                  {/* Spam Section */}
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-bold">Blocked Keywords</label>
+                        <textarea
+                          value={keywordInput}
+                          onChange={(e) => setKeywordInput(e.target.value)}
+                          className="w-full p-4 rounded-2xl border border-border bg-input-background focus:ring-2 focus:ring-accent outline-none min-h-[120px] resize-none"
+                          placeholder="e.g. crypto, casino, help"
+                        />
+                      </div>
+                      {spamConfig && (
+                        <div className="space-y-2">
+                          <label className="block text-sm font-bold">Max URLs per message</label>
+                          <input
+                            type="number"
+                            value={spamConfig.max_urls_allowed}
+                            onChange={(e) => setSpamConfig({ ...spamConfig, max_urls_allowed: Number(e.target.value) })}
+                            className="w-full p-4 rounded-2xl border border-border bg-input-background focus:ring-2 focus:ring-accent outline-none"
+                          />
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mt-2">Limits links in contact forms.</p>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  {/* Hotkeys Section */}
+                  <div className="pt-12 border-t border-border">
+                    {SITE_SETTING_CATEGORIES.find(c => c.id === "security")?.sections.map((section) => (
+                      <div key={section.title}>
+                        <div className="flex items-center gap-3 mb-8">
+                          <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center">
+                            <Lock className="w-5 h-5 text-accent" />
+                          </div>
+                          <div>
+                            <h2 className="font-heading text-2xl">{section.title}</h2>
+                            <p className="text-sm text-muted-foreground">Manage your secret login shortcuts.</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {section.fields.map((field) => (
+                            <div key={field.key} className="space-y-2">
+                              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{field.label}</label>
+                              <input 
+                                value={siteSettings[field.key] || ""}
+                                onChange={(e) => updateField(field.key, e.target.value)}
+                                placeholder={field.placeholder || ""}
+                                className="w-full px-4 py-3 bg-input-background border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-accent transition-all font-mono"
+                              />
+                              <p className="text-[10px] text-muted-foreground">Example: <strong>Shift+A</strong> or <strong>Ctrl+Alt+M</strong></p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -470,7 +589,33 @@ export function AdminSettingsPage() {
                       </div>
                       <div>
                         <div className="font-bold text-lg capitalize">{log.action_type} {log.entity_type.replace("_", " ")}</div>
-                        <p className="text-sm text-muted-foreground">{log.details}</p>
+                        <p className="text-sm text-muted-foreground mb-3">{log.details}</p>
+                        
+                        {/* Diff Viewer */}
+                        {log.action_type === "update" && log.previous_data && log.new_data && (
+                          <div className="space-y-2 mb-3 bg-muted/30 p-4 rounded-2xl border border-border/50">
+                            {Object.entries(log.new_data as Record<string, any>).map(([key, newValue]) => {
+                              const oldValue = (log.previous_data as Record<string, any>)[key];
+                              if (oldValue === newValue || (oldValue === undefined && !newValue)) return null;
+                              
+                              // Handle complex objects like highlights or itinerary
+                              const displayOld = typeof oldValue === "object" ? JSON.stringify(oldValue).slice(0, 50) + "..." : oldValue;
+                              const displayNew = typeof newValue === "object" ? JSON.stringify(newValue).slice(0, 50) + "..." : newValue;
+
+                              return (
+                                <div key={key} className="text-xs grid grid-cols-1 sm:grid-cols-[100px_1fr] gap-2">
+                                  <span className="font-bold text-muted-foreground uppercase tracking-tight">{key.replace(/_/g, " ")}</span>
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="px-2 py-0.5 bg-red-500/10 text-red-600 rounded line-through opacity-70 truncate max-w-[150px]">{displayOld || "None"}</span>
+                                    <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 rounded font-medium truncate max-w-[200px]">{displayNew || "None"}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
                         <div className="flex items-center gap-2 mt-2">
                           <span className="text-[10px] font-bold uppercase tracking-widest bg-muted px-2 py-1 rounded-md text-muted-foreground">
                             {new Date(log.created_at).toLocaleString()}
@@ -503,75 +648,76 @@ export function AdminSettingsPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-12">
-              {SITE_SETTING_CATEGORIES.find(c => c.id === activeTab)?.sections.map((section, sIdx) => (
-                <div key={section.title} className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <h2 className="font-heading text-2xl">{section.title}</h2>
-                    <div className="flex-1 h-px bg-border/50" />
-                  </div>
+            <div className="space-y-8">
+              {SITE_SETTING_CATEGORIES.find(c => c.id === activeTab)?.sections.map((section) => (
+                <div key={section.title} className="glass-panel p-8">
+                  <h2 className="font-heading text-2xl mb-2">{section.title}</h2>
+                  <div className="w-12 h-1 bg-accent rounded-full mb-8" />
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {section.fields.map((field) => {
                       const value = siteSettings[field.key] || "";
                       return (
-                        <div key={field.key} className={`${field.multiline ? "md:col-span-2" : ""} group`}>
-                          <label className="flex items-center gap-2 text-sm font-bold mb-3 text-muted-foreground group-focus-within:text-accent transition-colors">
-                            {field.icon && <field.icon className="w-4 h-4" />}
-                            {field.label}
-                          </label>
+                        <div key={field.key} className={`space-y-2 ${field.multiline || field.isImage ? "md:col-span-2" : ""}`}>
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                              {field.icon && <field.icon className="w-3.5 h-3.5" />}
+                              {field.label}
+                            </label>
+                            {DEFAULT_SITE_SETTINGS[field.key] && value !== DEFAULT_SITE_SETTINGS[field.key] && (
+                              <button 
+                                onClick={() => updateField(field.key, DEFAULT_SITE_SETTINGS[field.key])}
+                                className="text-[10px] font-bold text-accent uppercase hover:underline"
+                              >
+                                Reset to Default
+                              </button>
+                            )}
+                          </div>
                           
                           {field.isImage ? (
-                            <div className="flex flex-col md:flex-row gap-6 items-start">
-                              <div className="relative w-full md:w-64 aspect-video rounded-3xl bg-muted border border-border overflow-hidden group/img">
+                            <div className="flex items-start gap-6">
+                              <div className="relative group/img w-48 h-32 rounded-2xl bg-muted overflow-hidden border-2 border-dashed border-border hover:border-accent transition-colors flex-shrink-0">
                                 {value ? (
-                                  <img src={value} alt="Preview" className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-110" />
+                                  <img src={value} className="w-full h-full object-cover" alt={field.label} />
                                 ) : (
-                                  <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground">
-                                    <ImageIcon className="w-8 h-8 mb-2 opacity-20" />
-                                    <span className="text-[10px] font-bold uppercase">No Image</span>
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <ImageIcon className="w-8 h-8 opacity-20" />
                                   </div>
                                 )}
-                                <label className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                                  <Camera className="w-10 h-10 text-white" />
-                                  <input 
-                                    type="file" 
-                                    className="hidden" 
-                                    accept="image/*"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) void handleImageUpload(field.key, file);
-                                    }}
-                                  />
+                                <label className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer text-white">
+                                  <Upload className="w-6 h-6 mb-1" />
+                                  <span className="text-[10px] font-bold uppercase">Upload New</span>
+                                  <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) void handleImageUpload(field.key, file);
+                                  }} />
                                 </label>
                               </div>
-                              <div className="flex-1 w-full">
-                                <input
+                              <div className="flex-1 space-y-2">
+                                <input 
                                   value={value}
                                   onChange={(e) => updateField(field.key, e.target.value)}
-                                  className="w-full p-4 rounded-2xl border border-border bg-input-background focus:ring-2 focus:ring-accent outline-none text-sm"
-                                  placeholder="Paste Image URL or upload →"
+                                  placeholder="Or paste an image URL..."
+                                  className="w-full px-4 py-3 bg-input-background border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-accent transition-all"
                                 />
-                                <p className="mt-2 text-[10px] text-muted-foreground uppercase tracking-widest px-2">Image URL for {field.label}</p>
+                                <p className="text-[10px] text-muted-foreground">Upload a file or paste a direct URL to the image.</p>
                               </div>
                             </div>
                           ) : field.multiline ? (
-                            <textarea
+                            <textarea 
                               value={value}
                               onChange={(e) => updateField(field.key, e.target.value)}
                               rows={4}
-                              className="w-full p-4 rounded-2xl border border-border bg-input-background focus:ring-2 focus:ring-accent outline-none text-sm transition-all"
-                              placeholder={field.placeholder || `Enter ${field.label}...`}
+                              placeholder={field.placeholder || ""}
+                              className="w-full p-4 bg-input-background border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-accent transition-all leading-relaxed resize-none"
                             />
                           ) : (
-                            <div className="relative">
-                              <input
-                                value={value}
-                                onChange={(e) => updateField(field.key, e.target.value)}
-                                className="w-full p-4 rounded-2xl border border-border bg-input-background focus:ring-2 focus:ring-accent outline-none text-sm transition-all"
-                                placeholder={field.placeholder || `Enter ${field.label}...`}
-                              />
-                            </div>
+                            <input 
+                              value={value}
+                              onChange={(e) => updateField(field.key, e.target.value)}
+                              placeholder={field.placeholder || ""}
+                              className="w-full px-4 py-3 bg-input-background border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-accent transition-all"
+                            />
                           )}
                         </div>
                       );
@@ -579,21 +725,26 @@ export function AdminSettingsPage() {
                   </div>
                 </div>
               ))}
+
+              {/* Sticky Save Bar */}
+              <div className="sticky bottom-0 bg-background/80 backdrop-blur-xl p-6 rounded-2xl border border-border shadow-2xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="text-sm text-muted-foreground font-medium">You have unsaved changes</span>
+                </div>
+                <button
+                  onClick={handleSaveSite}
+                  disabled={savingSite}
+                  className="flex items-center gap-3 px-10 py-3.5 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-accent hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
+                >
+                  {savingSite ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                  Publish Changes
+                </button>
+              </div>
             </div>
           )}
         </motion.div>
       </AnimatePresence>
-      
-      {/* Sticky Mobile/Desktop Save Hint */}
-      <div className="fixed bottom-8 right-8 z-50 md:hidden">
-        <button
-          onClick={handleSaveSite}
-          disabled={savingSite}
-          className="w-14 h-14 bg-primary text-white rounded-full flex items-center justify-center shadow-2xl hover:bg-accent transition-all"
-        >
-          {savingSite ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
-        </button>
-      </div>
     </div>
   );
 }

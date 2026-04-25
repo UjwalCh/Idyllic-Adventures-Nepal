@@ -174,7 +174,7 @@ export function AdminJournalPage() {
                     <span className="text-xs px-2 py-1 bg-accent/10 text-accent rounded-full">{entry.category}</span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`text-xs px-2 py-1 rounded-full ${entry.published ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${entry.published ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}>
                       {entry.published ? "Published" : "Draft"}
                     </span>
                   </td>

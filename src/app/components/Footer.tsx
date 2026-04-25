@@ -6,13 +6,13 @@ export function Footer() {
   const { settings } = useSiteSettings();
 
   return (
-    <footer className="bg-primary text-primary-foreground">
+    <footer className="bg-[#020617] text-white">
       <div className="container mx-auto px-4 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           <div>
             <div className="flex items-center gap-3 mb-4">
               {settings.site_logo ? (
-                <img src={settings.site_logo} alt="Logo" className="w-10 h-10 object-contain invert brightness-0" />
+                <img src={settings.site_logo} alt="Logo" className="w-12 h-12 object-contain" />
               ) : (
                 <Mountain className="w-8 h-8" />
               )}

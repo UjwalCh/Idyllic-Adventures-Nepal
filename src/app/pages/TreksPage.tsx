@@ -19,25 +19,26 @@ export function TreksPage() {
 
   return (
     <div className="min-h-screen">
-      <section className="relative h-[50vh] overflow-hidden bg-primary">
-        <div className="absolute inset-0 opacity-20">
+      <section className="relative h-[50dvh] min-h-[400px] overflow-hidden">
+        <div className="absolute inset-0">
           <ImageWithFallback
             src={settings.treks_hero_image || "https://images.unsplash.com/photo-1592623171049-4be9e0f5a501?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw3fHxOZXBhbCUyMEhpbWFsYXlhcyUyMG1vdW50YWlucyUyMEV2ZXJlc3QlMjB0cmVrfGVufDF8fHx8MTc3NjkyOTg0NHww&ixlib=rb-4.1.0&q=80&w=1080"}
             alt="Treks"
             className="w-full h-full object-cover"
           />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
         </div>
         <div className="relative h-full flex items-center">
-          <div className="container mx-auto px-4 lg:px-8">
+          <div className="container mx-auto px-4 lg:px-8 text-center md:text-left">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <h1 className="font-heading text-5xl md:text-6xl text-primary-foreground mb-4">
+              <h1 className="font-heading text-5xl md:text-7xl text-white mb-6 drop-shadow-lg">
                 {settings.treks_hero_title || "Our Treks"}
               </h1>
-              <p className="text-lg text-primary-foreground/90 max-w-2xl">
+              <p className="text-xl text-white/90 max-w-2xl drop-shadow-md">
                 {settings.treks_hero_description || "Explore our curated collection of trekking adventures across the magnificent Himalayas of Nepal"}
               </p>
             </motion.div>
