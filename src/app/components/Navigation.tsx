@@ -29,8 +29,12 @@ export function Navigation() {
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="p-2 bg-primary rounded-lg group-hover:bg-accent transition-all duration-300 transform group-hover:rotate-6 shadow-lg shadow-primary/20">
-                <Mountain className="w-6 h-6 text-primary-foreground" />
+              <div className="p-2 bg-primary rounded-lg group-hover:bg-accent transition-all duration-300 transform group-hover:rotate-6 shadow-lg shadow-primary/20 flex items-center justify-center overflow-hidden w-12 h-12">
+                {settings.site_logo ? (
+                  <img src={settings.site_logo} alt="Logo" className="w-full h-full object-contain" />
+                ) : (
+                  <Mountain className="w-6 h-6 text-primary-foreground" />
+                )}
               </div>
               <div>
                 <div className="font-heading text-xl tracking-tight text-primary">

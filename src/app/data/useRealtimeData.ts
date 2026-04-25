@@ -19,12 +19,14 @@ import {
   fetchGalleryImages,
   subscribeToJournal,
   subscribeToGallery,
+  fetchAdminLogs,
   JournalEntry,
   GalleryImage,
+  AdminLog,
 } from "./supabaseData";
 
 export function useTreks() {
-  const [treks, setTreks] = useState<Trek[]>(mockTreks);
+  const [treks, setTreks] = useState<Trek[]>([]);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +55,7 @@ export function useTreks() {
 }
 
 export function useNotices() {
-  const [notices, setNotices] = useState<Notice[]>(mockNotices);
+  const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [error, setError] = useState<string | null>(null);
 
@@ -222,4 +224,30 @@ export function useGallery() {
   }, [loadImages]);
 
   return { images, loading, error, refresh: loadImages };
+}
+
+export function useAdminLogs(limit = 50) {
+  const [logs, setLogs] = useState<AdminLog[]>([]);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadLogs = useCallback(async () => {
+    try {
+      const data = await fetchAdminLogs(limit);
+      setLogs(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch admin logs");
+    } finally {
+      setLoading(false);
+    }
+  }, [limit]);
+
+  useEffect(() => {
+    void loadLogs();
+    // For simplicity, we'll just poll or rely on manual refresh for logs
+    // since they aren't critical for real-time visitor experience
+  }, [loadLogs]);
+
+  return { logs, loading, error, refresh: loadLogs };
 }

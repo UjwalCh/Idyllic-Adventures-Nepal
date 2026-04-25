@@ -11,7 +11,11 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <Mountain className="w-8 h-8" />
+              {settings.site_logo ? (
+                <img src={settings.site_logo} alt="Logo" className="w-10 h-10 object-contain invert brightness-0" />
+              ) : (
+                <Mountain className="w-8 h-8" />
+              )}
               <div>
                 <div className="font-heading text-xl">Idyllic Adventures</div>
                 <div className="text-xs text-primary-foreground/70">Nepal</div>

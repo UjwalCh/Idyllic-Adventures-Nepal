@@ -12,6 +12,17 @@ export interface SiteSettings {
   [key: string]: string;
 }
 
+export interface AdminLog {
+  id: string;
+  action_type: "create" | "update" | "delete" | "toggle";
+  entity_type: "site_settings" | "treks" | "notices" | "spam_config" | "journal" | "gallery";
+  entity_id: string;
+  details: string;
+  previous_data: any;
+  new_data: any;
+  created_at: string;
+}
+
 export interface SpamConfig {
   name: string;
   blocked_keywords: string[];
@@ -59,6 +70,9 @@ export async function getSiteSettings(): Promise<SiteSettings> {
 export async function updateSiteSettings(values: Record<string, string | undefined | null>): Promise<void> {
   if (!supabase) return;
 
+  // Get current settings for logging
+  const previousSettings = await getSiteSettings();
+
   const rows = Object.entries(values)
     .filter(([_, value]) => value !== undefined && value !== null)
     .map(([key, value]) => ({
@@ -73,6 +87,16 @@ export async function updateSiteSettings(values: Record<string, string | undefin
     console.error("Supabase Settings Error:", error);
     throw error;
   }
+
+  // Log the action
+  await logAdminAction({
+    action_type: "update",
+    entity_type: "site_settings",
+    entity_id: "multiple",
+    details: `Updated site settings: ${Object.keys(values).join(", ")}`,
+    previous_data: previousSettings,
+    new_data: values,
+  });
 
   settingsCache = null;
   settingsCacheTime = 0;
@@ -296,10 +320,75 @@ export async function logSubmission(
     console.error('Failed to log submission:', error);
   }
 }
+// Admin Logging System
+export async function logAdminAction(log: Omit<AdminLog, "id" | "created_at">): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.from("admin_logs").insert(log);
+  } catch (error) {
+    console.error("Failed to log admin action:", error);
+  }
+}
+
+export async function fetchAdminLogs(limit = 50): Promise<AdminLog[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("admin_logs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data as AdminLog[];
+}
+
+export async function revertAdminAction(logId: string): Promise<void> {
+  if (!supabase) return;
+
+  // 1. Get the log entry
+  const { data: log, error: fetchError } = await supabase
+    .from("admin_logs")
+    .select("*")
+    .eq("id", logId)
+    .single();
+
+  if (fetchError || !log) throw new Error("Log entry not found");
+
+  const { entity_type, entity_id, previous_data, action_type } = log as AdminLog;
+
+  // 2. Revert based on type
+  if (entity_type === "site_settings") {
+    await updateSiteSettings(previous_data);
+  } else if (entity_type === "treks") {
+    if (action_type === "delete") {
+      await createTrek(previous_data);
+    } else if (action_type === "create") {
+      await deleteTrek(entity_id);
+    } else {
+      await updateTrek(entity_id, previous_data);
+    }
+  } else if (entity_type === "notices") {
+    if (action_type === "delete") {
+      await createNotice(previous_data);
+    } else if (action_type === "create") {
+      await deleteNotice(entity_id);
+    }
+  } else if (entity_type === "spam_config") {
+    await updateSpamConfig(previous_data);
+  }
+
+  // 3. Log the revert itself
+  await logAdminAction({
+    action_type: "update",
+    entity_type: log.entity_type,
+    entity_id: log.entity_id,
+    details: `Reverted action: ${log.details}`,
+    previous_data: log.new_data,
+    new_data: log.previous_data,
+  });
+}
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as
-  | string
-  | undefined;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
@@ -557,9 +646,23 @@ export async function deleteTrek(id: string): Promise<void> {
     return;
   }
 
+  // Get current trek for logging
+  const { data: previousTrek } = await supabase.from("treks").select("*").eq("id", id).single();
+
   const { error } = await supabase.from("treks").delete().eq("id", id);
   if (error) {
     throw error;
+  }
+
+  if (previousTrek) {
+    await logAdminAction({
+      action_type: "delete",
+      entity_type: "treks",
+      entity_id: id,
+      details: `Deleted trek: ${previousTrek.title}`,
+      previous_data: previousTrek,
+      new_data: null,
+    });
   }
 }
 
@@ -568,10 +671,20 @@ export async function createTrek(trek: Trek): Promise<void> {
     return;
   }
 
-  const { error } = await supabase.from("treks").insert(mapTrekToRecord(trek));
+  const record = mapTrekToRecord(trek);
+  const { error } = await supabase.from("treks").insert(record);
   if (error) {
     throw error;
   }
+
+  await logAdminAction({
+    action_type: "create",
+    entity_type: "treks",
+    entity_id: trek.id,
+    details: `Created new trek: ${trek.title}`,
+    previous_data: null,
+    new_data: record,
+  });
 }
 
 export async function updateTrek(
@@ -581,6 +694,9 @@ export async function updateTrek(
   if (!supabase) {
     return;
   }
+
+  // Get previous trek for logging
+  const { data: previousTrek } = await supabase.from("treks").select("*").eq("id", id).single();
 
   const payload: Partial<Omit<TrekRecord, "id" | "created_at">> = {};
 
@@ -601,6 +717,17 @@ export async function updateTrek(
   if (error) {
     throw error;
   }
+
+  if (previousTrek) {
+    await logAdminAction({
+      action_type: "update",
+      entity_type: "treks",
+      entity_id: id,
+      details: `Updated trek: ${patch.title || previousTrek.title}`,
+      previous_data: previousTrek,
+      new_data: payload,
+    });
+  }
 }
 
 export async function deleteNotice(id: string): Promise<void> {
@@ -608,9 +735,23 @@ export async function deleteNotice(id: string): Promise<void> {
     return;
   }
 
+  // Get previous notice
+  const { data: previousNotice } = await supabase.from("notices").select("*").eq("id", id).single();
+
   const { error } = await supabase.from("notices").delete().eq("id", id);
   if (error) {
     throw error;
+  }
+
+  if (previousNotice) {
+    await logAdminAction({
+      action_type: "delete",
+      entity_type: "notices",
+      entity_id: id,
+      details: `Deleted notice: ${previousNotice.title}`,
+      previous_data: previousNotice,
+      new_data: null,
+    });
   }
 }
 
@@ -621,10 +762,19 @@ export async function createNotice(
     return;
   }
 
-  const { error } = await supabase.from("notices").insert(notice);
+  const { data, error } = await supabase.from("notices").insert(notice).select().single();
   if (error) {
     throw error;
   }
+
+  await logAdminAction({
+    action_type: "create",
+    entity_type: "notices",
+    entity_id: data?.id || "new",
+    details: `Created new notice: ${notice.title}`,
+    previous_data: null,
+    new_data: notice,
+  });
 }
 
 export async function uploadTrekImage(file: File): Promise<string> {
