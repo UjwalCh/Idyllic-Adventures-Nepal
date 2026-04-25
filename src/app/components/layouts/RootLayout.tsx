@@ -20,6 +20,12 @@ export function RootLayout() {
       document.title = settings.seo_title;
     }
 
+    // Dynamic Favicon
+    if (settings.site_logo) {
+      const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (link) link.href = settings.site_logo;
+    }
+
     // Meta Description
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
