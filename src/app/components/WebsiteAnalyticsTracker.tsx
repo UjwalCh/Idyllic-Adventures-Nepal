@@ -7,21 +7,17 @@ export function WebsiteAnalyticsTracker() {
 
   useEffect(() => {
     const path = `${location.pathname}${location.search}`;
-    
-    // EXCLUDE ADMIN PATHS BUT ALLOW HOME PAGE
-    if (path.startsWith("/managepage/dashboard") || path.startsWith("/managepage/analytics")) return;
+    if (path.includes("/managepage/")) return;
 
-    // Track page view immediately
-    console.log("📡 Tracking Signal: Page View ->", path);
+    // Fast Page View
     void trackWebsiteEvent("page_view", path);
 
-    // Reliable 30s heartbeat
-    const interval = setInterval(() => {
-      console.log("💓 Tracking Signal: Pulse ->", path);
+    // Steady 30s Heartbeat
+    const pulse = setInterval(() => {
       void trackWebsiteEvent("stay", path, 30);
     }, 30000);
 
-    return () => clearInterval(interval);
+    return () => clearInterval(pulse);
   }, [location.pathname, location.search]);
 
   return null;
