@@ -226,7 +226,7 @@ const DEFAULT_SITE_SETTINGS: Record<string, string> = {
   nav_brand_name: "Idyllic Adventures",
   nav_brand_tagline: "Explore. Experience. Enjoy.",
   location: "Kathmandu, Nepal",
-  email_main: "ujwlchapagai@gmail.com",
+  email_main: "chapagaiujwal@gmail.com",
   phone_1: "+977 1234567890",
   home_hero_image: "https://images.unsplash.com/photo-1690122601365-77d6ee21e998?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
   home_hero_badge: "Explore the Himalayas",
@@ -247,7 +247,7 @@ const DEFAULT_SITE_SETTINGS: Record<string, string> = {
   seo_title: "Idyllic Adventures Nepal",
   admin_hotkeys: "Shift+A",
   enquiry_notifications_enabled: "true",
-  enquiry_email: "ujwlchapagai@gmail.com",
+  enquiry_email: "chapagaiujwal@gmail.com",
 };
 
 type SubmissionLog = {

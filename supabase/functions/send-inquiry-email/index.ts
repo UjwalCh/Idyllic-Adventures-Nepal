@@ -81,7 +81,7 @@ serve(async (req) => {
   });
 
   const isEnabled = settings["enquiry_notifications_enabled"] === "true";
-  const alertEmailTo = settings["enquiry_email"] || "ujwlchapagai@gmail.com";
+  const alertEmailTo = settings["enquiry_email"] || "chapagaiujwal@gmail.com";
 
   console.log(`Notification status: ${isEnabled} (Setting: ${settings["enquiry_notifications_enabled"]})`);
   console.log(`Alert Email To: ${alertEmailTo}`);
