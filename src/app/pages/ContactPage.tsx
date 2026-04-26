@@ -97,10 +97,11 @@ export function ContactPage() {
 
       if (status === "submitted") {
         void trackWebsiteEvent("cta_click", `inquiry-submit:${formData.inquiryType}`);
+        toast.success("Submitted successfully. I will contact you soon.");
+        resetForm();
+      } else {
+        toast.error("❌ Flagged as potential spam. Please verify your message.");
       }
-
-      toast.success("Submitted successfully. I will contact you soon.");
-      resetForm();
     } catch (error) {
       console.error("Submission Error:", error);
       const message = error instanceof Error ? error.message : "Submission failed";

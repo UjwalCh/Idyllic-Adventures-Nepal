@@ -1199,7 +1199,7 @@ export async function createInquiryWithValidation(payload: {
     .single();
 
   if (error) {
-    throw error;
+    throw new Error(error.message || error.details || "Database insertion failed");
   }
 
   await logSubmission(ipAddress, data.id, false);
