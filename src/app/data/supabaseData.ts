@@ -866,19 +866,24 @@ export async function deleteStoredTrekImage(imageUrl: string): Promise<void> {
 
 
 function getSessionId(): string {
-  const fallback = crypto.randomUUID();
-  if (typeof window === "undefined") {
-    return fallback;
-  }
+  if (typeof window === "undefined") return "server-side";
 
   const key = "idyllic_session_id";
   const existing = window.localStorage.getItem(key);
-  if (existing) {
-    return existing;
-  }
+  if (existing) return existing;
 
-  window.localStorage.setItem(key, fallback);
-  return fallback;
+  // Robust universal ID generation
+  const newId = typeof crypto !== 'undefined' && crypto.randomUUID 
+    ? crypto.randomUUID() 
+    : `id-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    
+  try {
+    window.localStorage.setItem(key, newId);
+  } catch (e) {
+    // Fallback for private modes where localStorage is disabled
+    return `temp-${Date.now()}`;
+  }
+  return newId;
 }
 
 function normalizeLocationPart(value: string | undefined): string | null {
@@ -969,20 +974,11 @@ export async function trackWebsiteEvent(
   }
 
   const referrer = typeof document !== "undefined" ? document.referrer || null : null;
+  const referrerSource = getReferrerSource(referrer);
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
-  const visitorLocation = await loadVisitorLocation();
-
-  let referrerSource: "Search" | "Social" | "Direct" | "Referral" = "Direct";
-  if (referrer) {
-    const refLower = referrer.toLowerCase();
-    if (refLower.includes("google") || refLower.includes("bing") || refLower.includes("yahoo") || refLower.includes("duckduckgo")) {
-      referrerSource = "Search";
-    } else if (refLower.includes("facebook") || refLower.includes("instagram") || refLower.includes("t.co") || refLower.includes("linkedin") || refLower.includes("whatsapp")) {
-      referrerSource = "Social";
-    } else {
-      referrerSource = "Referral";
-    }
-  }
+  
+  // Non-blocking location lookup to ensure instant tracking
+  const visitorLocationPromise = loadVisitorLocation();
 
   const { error } = await supabase.from("website_events").insert({
     event_type: eventType,
@@ -992,16 +988,41 @@ export async function trackWebsiteEvent(
     user_agent: userAgent,
     session_id: getSessionId(),
     duration: duration ?? null,
-    country: visitorLocation?.country ?? null,
-    region: visitorLocation?.region ?? null,
-    city: visitorLocation?.city ?? null,
-    country_code: visitorLocation?.countryCode ?? null,
-    location_label: visitorLocation?.locationLabel ?? null,
   });
 
   if (error) {
     throw error;
   }
+
+  // Update the event with location data in the background (best effort)
+  visitorLocationPromise.then(async (visitorLocation) => {
+    if (visitorLocation && supabase) {
+      // Try to find the event we just created and update it
+      // This is a background task, so we don't await it
+      await supabase.from("website_events")
+        .update({
+          country: visitorLocation.country,
+          region: visitorLocation.region,
+          city: visitorLocation.city,
+          country_code: visitorLocation.countryCode,
+          location_label: visitorLocation.locationLabel,
+        })
+        .match({ session_id: getSessionId(), event_type: eventType, path: trimmedPath })
+        .order("created_at", { ascending: false })
+        .limit(1);
+    }
+  });
+}
+
+function getReferrerSource(referrer: string | null): "Search" | "Social" | "Direct" | "Referral" {
+  if (!referrer) return "Direct";
+  const refLower = referrer.toLowerCase();
+  if (refLower.includes("google") || refLower.includes("bing") || refLower.includes("yahoo") || refLower.includes("duckduckgo")) {
+    return "Search";
+  } else if (refLower.includes("facebook") || refLower.includes("instagram") || refLower.includes("t.co") || refLower.includes("linkedin") || refLower.includes("whatsapp")) {
+    return "Social";
+  }
+  return "Referral";
 }
 
 export async function fetchWebsiteEvents(hours = 24): Promise<WebsiteEvent[]> {
@@ -1011,9 +1032,10 @@ export async function fetchWebsiteEvents(hours = 24): Promise<WebsiteEvent[]> {
 
   const from = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 
+  // First try to fetch with all columns (new version)
   const { data, error } = await supabase
     .from("website_events")
-    .select("id, event_type, path, referrer, referrer_source, user_agent, session_id, duration, country, region, city, country_code, location_label, created_at")
+    .select("*")
     .gte("created_at", from)
     .order("created_at", { ascending: false })
     .limit(5000);
@@ -1022,7 +1044,22 @@ export async function fetchWebsiteEvents(hours = 24): Promise<WebsiteEvent[]> {
     throw error;
   }
 
-  return (data as WebsiteEventRecord[]).map(mapWebsiteEventRecordToEvent);
+  return (data as any[]).map(record => ({
+    id: record.id,
+    eventType: record.event_type,
+    path: record.path,
+    referrer: record.referrer,
+    referrerSource: record.referrer_source || "Direct",
+    userAgent: record.user_agent,
+    sessionId: record.session_id,
+    duration: record.duration,
+    country: record.country || record.location_label?.split(",").pop()?.trim() || null,
+    region: record.region || null,
+    city: record.city || null,
+    countryCode: record.country_code || null,
+    locationLabel: record.location_label || "Legacy Data",
+    createdAt: record.created_at,
+  }));
 }
 
 function mapWebsiteEventRecordToEvent(record: WebsiteEventRecord): WebsiteEvent {
@@ -1252,6 +1289,10 @@ export interface JournalEntry {
   image: string | null;
   category: string | null;
   published: boolean;
+  authorName: string | null;
+  authorRole: string | null;
+  authorBio: string | null;
+  authorImage: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1265,6 +1306,10 @@ interface JournalEntryRecord {
   image: string | null;
   category: string | null;
   published: boolean;
+  author_name: string | null;
+  author_role: string | null;
+  author_bio: string | null;
+  author_image: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1297,6 +1342,10 @@ function mapJournalRecordToEntry(record: JournalEntryRecord): JournalEntry {
     image: record.image,
     category: record.category,
     published: record.published,
+    authorName: record.author_name,
+    authorRole: record.author_role,
+    authorBio: record.author_bio,
+    authorImage: record.author_image,
     createdAt: record.created_at,
     updatedAt: record.updated_at,
   };
@@ -1352,6 +1401,10 @@ export async function createJournalEntry(entry: Omit<JournalEntry, "id" | "creat
     image: entry.image,
     category: entry.category,
     published: entry.published,
+    author_name: entry.authorName,
+    author_role: entry.authorRole,
+    author_bio: entry.authorBio,
+    author_image: entry.authorImage,
   });
 
   if (error) throw error;
@@ -1360,12 +1413,15 @@ export async function createJournalEntry(entry: Omit<JournalEntry, "id" | "creat
 export async function updateJournalEntry(id: string, patch: Partial<JournalEntry>): Promise<void> {
   if (!supabase) return;
 
+  const updateData: any = { ...patch };
+  if (patch.authorName !== undefined) updateData.author_name = patch.authorName;
+  if (patch.authorRole !== undefined) updateData.author_role = patch.authorRole;
+  if (patch.authorBio !== undefined) updateData.author_bio = patch.authorBio;
+  if (patch.authorImage !== undefined) updateData.author_image = patch.authorImage;
+
   const { error } = await supabase
     .from("journal_entries")
-    .update({
-      ...patch,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq("id", id);
 
   if (error) throw error;

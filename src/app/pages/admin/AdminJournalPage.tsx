@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { motion } from "motion/react";
-import { Plus, Edit2, Trash2, Calendar, Tag, CheckCircle2, BookOpen, Upload, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Calendar, Tag, CheckCircle2, BookOpen, Upload, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useJournal } from "../../data/useRealtimeData";
 import { createJournalEntry, deleteJournalEntry, updateJournalEntry, JournalEntry, uploadImage, JOURNAL_IMAGES_BUCKET } from "../../data/supabaseData";
@@ -20,7 +20,10 @@ type JournalFormState = {
   excerpt: string;
   image: string;
   category: string;
-  published: boolean;
+  authorName: string;
+  authorRole: string;
+  authorBio: string;
+  authorImage: string;
 };
 
 const defaultFormState: JournalFormState = {
@@ -31,6 +34,10 @@ const defaultFormState: JournalFormState = {
   image: "https://images.unsplash.com/photo-1544735716-392fe2489ffa",
   category: "Adventure",
   published: true,
+  authorName: "Ujwal Sharma",
+  authorRole: "Lead Trek Guide",
+  authorBio: "Sharing my love for the mountains and the unique culture of Nepal through stories and photographs.",
+  authorImage: "",
 };
 
 const fieldClassName = "w-full px-4 py-3 bg-input-background rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-accent";
@@ -44,15 +51,15 @@ export function AdminJournalPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formState, setFormState] = useState<JournalFormState>(defaultFormState);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: "image" | "authorImage" = "image") => {
     const file = e.target.files?.[0];
     if (!file) return;
-
+ 
     setIsUploading(true);
     try {
       const publicUrl = await uploadImage(file, JOURNAL_IMAGES_BUCKET);
-      setFormState(prev => ({ ...prev, image: publicUrl }));
-      toast.success("Cover image uploaded!");
+      setFormState(prev => ({ ...prev, [targetField]: publicUrl }));
+      toast.success(`${targetField === "image" ? "Cover" : "Author"} image uploaded!`);
     } catch (err) {
       toast.error("Upload failed");
     } finally {
@@ -91,6 +98,10 @@ export function AdminJournalPage() {
       image: entry.image || "",
       category: entry.category || "",
       published: entry.published,
+      authorName: entry.authorName || "Ujwal Sharma",
+      authorRole: entry.authorRole || "Lead Trek Guide",
+      authorBio: entry.authorBio || "",
+      authorImage: entry.authorImage || "",
     });
     setIsFormOpen(true);
   };
@@ -309,6 +320,82 @@ export function AdminJournalPage() {
                   className={fieldClassName}
                   placeholder="Tell your story..."
                 />
+              </div>
+
+              {/* Author Information Section */}
+              <div className="border-t border-border pt-6 mt-2">
+                <h4 className="font-heading text-lg mb-4 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-accent" />
+                  Author Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm mb-2 font-medium">Author Name</label>
+                      <input
+                        value={formState.authorName}
+                        onChange={(e) => setFormState(prev => ({ ...prev, authorName: e.target.value }))}
+                        className={fieldClassName}
+                        placeholder="Ujwal Sharma"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-2 font-medium">Author Role</label>
+                      <input
+                        value={formState.authorRole}
+                        onChange={(e) => setFormState(prev => ({ ...prev, authorRole: e.target.value }))}
+                        className={fieldClassName}
+                        placeholder="Lead Trek Guide"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm mb-2 font-medium">Author Photo</label>
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-full bg-muted border border-border overflow-hidden shrink-0">
+                          {formState.authorImage ? (
+                            <img src={formState.authorImage} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
+                              <Users className="w-8 h-8" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <button 
+                            onClick={() => {
+                              const input = document.createElement('input');
+                              input.type = 'file';
+                              input.accept = 'image/*';
+                              input.onchange = (e) => handleFileUpload(e as any, "authorImage");
+                              input.click();
+                            }}
+                            className="text-xs font-bold uppercase tracking-widest text-accent hover:underline"
+                          >
+                            Upload Photo
+                          </button>
+                          <input
+                            value={formState.authorImage}
+                            onChange={(e) => setFormState(prev => ({ ...prev, authorImage: e.target.value }))}
+                            className="w-full mt-2 text-xs bg-transparent border-none focus:ring-0 p-0"
+                            placeholder="Or paste URL"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-2 font-medium">Author Bio</label>
+                      <textarea
+                        value={formState.authorBio}
+                        onChange={(e) => setFormState(prev => ({ ...prev, authorBio: e.target.value }))}
+                        rows={2}
+                        className={fieldClassName}
+                        placeholder="Short bio for the author card..."
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

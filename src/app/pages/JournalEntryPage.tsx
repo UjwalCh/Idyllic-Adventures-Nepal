@@ -92,63 +92,79 @@ export function JournalEntryPage() {
       </section>
 
       {/* Content */}
-      <section className="container mx-auto px-4 lg:px-8 -mt-20 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+      <section className="container mx-auto px-4 lg:px-8 py-16 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="lg:col-span-8 bg-card rounded-[3rem] p-8 md:p-16 shadow-2xl border border-border/50"
+            className="lg:col-span-8 bg-card rounded-[3rem] p-8 md:p-16 shadow-2xl border border-border/50 h-fit"
           >
-            <div className="prose prose-xl prose-stone max-w-none prose-headings:font-heading prose-a:text-accent">
+            <div className="prose prose-xl prose-stone dark:prose-invert max-w-none prose-headings:font-heading prose-a:text-accent">
               {entry.content.split('\n').map((paragraph, i) => (
                 paragraph.trim() ? <p key={i} className="mb-6 leading-relaxed text-muted-foreground">{paragraph}</p> : <br key={i} />
               ))}
             </div>
 
-            <div className="mt-16 pt-8 border-t border-border/30 flex items-center justify-between">
+            <div className="mt-16 pt-8 border-t border-border/30 flex flex-col sm:flex-row items-center justify-between gap-6">
               <div className="flex gap-4">
-                <button className="p-3 bg-muted/50 hover:bg-muted rounded-full transition-colors">
-                  <Share2 className="w-5 h-5" />
+                <button 
+                  onClick={() => {
+                    const url = window.location.href;
+                    if (navigator.share) {
+                      navigator.share({ title: entry.title, url }).catch(() => {});
+                    } else {
+                      navigator.clipboard.writeText(url);
+                      alert("Link copied to clipboard!");
+                    }
+                  }}
+                  className="p-4 bg-muted/50 hover:bg-muted rounded-full transition-colors flex items-center gap-3 text-sm font-bold"
+                >
+                  <Share2 className="w-5 h-5 text-accent" />
+                  <span>Share Story</span>
                 </button>
               </div>
               <Link
                 to="/contact"
-                className="px-8 py-4 bg-primary text-primary-foreground rounded-2xl font-bold hover:bg-accent transition-all"
+                className="w-full sm:w-auto px-8 py-4 bg-accent text-white rounded-2xl font-bold hover:scale-105 transition-all shadow-xl shadow-accent/20"
               >
                 Plan Your Trek Like This
               </Link>
             </div>
           </motion.div>
 
-          <aside className="lg:col-span-4 space-y-10">
-            <div className="glass-panel p-8">
+          <aside className="lg:col-span-4 space-y-8">
+            <div className="glass-panel p-8 sticky top-32">
               <h3 className="font-heading text-2xl mb-6">About the Author</h3>
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-full bg-secondary overflow-hidden">
-                  <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=100" alt="Guide" className="w-full h-full object-cover" />
+                <div className="w-20 h-20 rounded-full bg-secondary overflow-hidden border-2 border-accent/20 shrink-0">
+                  <img 
+                    src={entry.authorImage || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=100"} 
+                    alt={entry.authorName || "Guide"} 
+                    className="w-full h-full object-cover" 
+                  />
                 </div>
                 <div>
-                  <div className="font-bold">Ujwal Sharma</div>
-                  <div className="text-sm text-muted-foreground">Lead Trek Guide</div>
+                  <div className="font-bold text-xl">{entry.authorName || "Ujwal Sharma"}</div>
+                  <div className="text-sm text-accent font-medium uppercase tracking-widest">{entry.authorRole || "Lead Trek Guide"}</div>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Sharing my love for the mountains and the unique culture of Nepal through stories and photographs.
+              <p className="text-muted-foreground leading-relaxed italic border-l-4 border-accent/20 pl-4">
+                {entry.authorBio || "Sharing my love for the mountains and the unique culture of Nepal through stories and photographs."}
               </p>
-            </div>
 
-            <div className="glass-panel p-8">
-              <h3 className="font-heading text-2xl mb-6">Want to visit?</h3>
-              <p className="text-sm text-muted-foreground mb-8">
-                Every story in this journal is based on a real trek we offer. Interested in seeing these views for yourself?
-              </p>
-              <Link
-                to="/treks"
-                className="w-full py-4 bg-secondary text-primary font-bold rounded-xl text-center block hover:scale-105 transition-transform"
-              >
-                View Our Treks
-              </Link>
+              <div className="mt-10 pt-8 border-t border-border/30">
+                <h3 className="font-heading text-2xl mb-6">Want to visit?</h3>
+                <p className="text-sm text-muted-foreground mb-8">
+                  Every story in this journal is based on a real trek we offer. Interested in seeing these views for yourself?
+                </p>
+                <Link
+                  to="/treks"
+                  className="w-full py-4 bg-secondary text-primary font-bold rounded-xl text-center block hover:bg-secondary/90 transition-all shadow-lg"
+                >
+                  View Our Treks
+                </Link>
+              </div>
             </div>
           </aside>
         </div>

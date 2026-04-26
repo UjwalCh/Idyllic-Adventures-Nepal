@@ -36,7 +36,7 @@ export function FloatingAction() {
         onClick={() => setIsOpen(!isOpen)}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center shadow-2xl hover:shadow-primary/50 transition-shadow"
+        className="w-16 h-16 bg-accent text-white rounded-full flex items-center justify-center shadow-2xl hover:shadow-accent/50 transition-all border-2 border-white/10 dark:border-white/20"
       >
         {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
       </motion.button>

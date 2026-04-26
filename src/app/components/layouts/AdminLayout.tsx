@@ -18,10 +18,12 @@ import { getCurrentSession, signOutAdmin, subscribeToAuthChanges } from "../../d
 import { useTheme, ThemeProvider } from "next-themes";
 import { Toaster } from "../ui/sonner";
 import { useSiteSettings } from "../../data/useRealtimeData";
+import { WebsiteAnalyticsTracker } from "../WebsiteAnalyticsTracker";
 
 export function AdminLayout() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="idyllic-admin-theme">
+      <WebsiteAnalyticsTracker />
       <AdminLayoutContent />
       <Toaster position="top-right" />
     </ThemeProvider>
