@@ -428,11 +428,13 @@ interface NoticeRecord {
 
 export interface WebsiteEvent {
   id: string;
-  eventType: "page_view" | "cta_click";
+  eventType: "page_view" | "cta_click" | "stay";
   path: string;
   referrer: string | null;
+  referrerSource: "Search" | "Social" | "Direct" | "Referral";
   userAgent: string | null;
   sessionId: string;
+  duration?: number;
   country: string | null;
   region: string | null;
   city: string | null;
@@ -443,11 +445,13 @@ export interface WebsiteEvent {
 
 interface WebsiteEventRecord {
   id: string;
-  event_type: "page_view" | "cta_click";
+  event_type: "page_view" | "cta_click" | "stay";
   path: string;
   referrer: string | null;
+  referrer_source: string;
   user_agent: string | null;
   session_id: string;
+  duration?: number;
   country: string | null;
   region: string | null;
   city: string | null;
@@ -859,22 +863,7 @@ export async function deleteStoredTrekImage(imageUrl: string): Promise<void> {
   }
 }
 
-function mapWebsiteEventRecordToEvent(record: WebsiteEventRecord): WebsiteEvent {
-  return {
-    id: record.id,
-    eventType: record.event_type,
-    path: record.path,
-    referrer: record.referrer,
-    userAgent: record.user_agent,
-    sessionId: record.session_id,
-    country: record.country,
-    region: record.region,
-    city: record.city,
-    countryCode: record.country_code,
-    locationLabel: record.location_label,
-    createdAt: record.created_at,
-  };
-}
+
 
 function getSessionId(): string {
   const fallback = crypto.randomUUID();
@@ -966,8 +955,9 @@ async function loadVisitorLocation(): Promise<VisitorLocation | null> {
 }
 
 export async function trackWebsiteEvent(
-  eventType: "page_view" | "cta_click",
-  path: string
+  eventType: "page_view" | "cta_click" | "stay",
+  path: string,
+  duration?: number
 ): Promise<void> {
   if (!supabase) {
     return;
@@ -982,12 +972,26 @@ export async function trackWebsiteEvent(
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
   const visitorLocation = await loadVisitorLocation();
 
+  let referrerSource: "Search" | "Social" | "Direct" | "Referral" = "Direct";
+  if (referrer) {
+    const refLower = referrer.toLowerCase();
+    if (refLower.includes("google") || refLower.includes("bing") || refLower.includes("yahoo") || refLower.includes("duckduckgo")) {
+      referrerSource = "Search";
+    } else if (refLower.includes("facebook") || refLower.includes("instagram") || refLower.includes("t.co") || refLower.includes("linkedin") || refLower.includes("whatsapp")) {
+      referrerSource = "Social";
+    } else {
+      referrerSource = "Referral";
+    }
+  }
+
   const { error } = await supabase.from("website_events").insert({
     event_type: eventType,
     path: trimmedPath,
     referrer,
+    referrer_source: referrerSource,
     user_agent: userAgent,
     session_id: getSessionId(),
+    duration: duration ?? null,
     country: visitorLocation?.country ?? null,
     region: visitorLocation?.region ?? null,
     city: visitorLocation?.city ?? null,
@@ -1009,7 +1013,7 @@ export async function fetchWebsiteEvents(hours = 24): Promise<WebsiteEvent[]> {
 
   const { data, error } = await supabase
     .from("website_events")
-    .select("id, event_type, path, referrer, user_agent, session_id, country, region, city, country_code, location_label, created_at")
+    .select("id, event_type, path, referrer, referrer_source, user_agent, session_id, duration, country, region, city, country_code, location_label, created_at")
     .gte("created_at", from)
     .order("created_at", { ascending: false })
     .limit(5000);
@@ -1019,6 +1023,25 @@ export async function fetchWebsiteEvents(hours = 24): Promise<WebsiteEvent[]> {
   }
 
   return (data as WebsiteEventRecord[]).map(mapWebsiteEventRecordToEvent);
+}
+
+function mapWebsiteEventRecordToEvent(record: WebsiteEventRecord): WebsiteEvent {
+  return {
+    id: record.id,
+    eventType: record.event_type,
+    path: record.path,
+    referrer: record.referrer,
+    referrerSource: record.referrer_source as any,
+    userAgent: record.user_agent,
+    sessionId: record.session_id,
+    duration: record.duration,
+    country: record.country,
+    region: record.region,
+    city: record.city,
+    countryCode: record.country_code,
+    locationLabel: record.location_label,
+    createdAt: record.created_at,
+  };
 }
 
 export function subscribeToWebsiteEvents(onChange: () => void): () => void {

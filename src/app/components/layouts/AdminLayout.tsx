@@ -10,7 +10,8 @@ import {
   BookOpen,
   Moon,
   Sun,
-  Monitor
+  Monitor,
+  TrendingUp
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getCurrentSession, signOutAdmin, subscribeToAuthChanges } from "../../data/auth";
@@ -91,6 +92,7 @@ function AdminLayoutContent() {
     { path: "/managepage/dashboard/gallery", icon: Image, label: "Gallery" },
     { path: "/managepage/dashboard/notices", icon: Bell, label: "Notices" },
     { path: "/managepage/dashboard/inquiries", icon: MessageSquareText, label: "Inquiries" },
+    { path: "/managepage/dashboard/analytics", icon: TrendingUp, label: "Analytics" },
     { path: "/managepage/dashboard/settings", icon: Settings, label: "Settings" },
   ];
 

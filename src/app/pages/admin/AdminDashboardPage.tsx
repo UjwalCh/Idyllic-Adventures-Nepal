@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Mountain, Image, Bell, Users, TrendingUp, Sparkles, ShieldCheck, ArrowRight, Settings, BookOpen, Camera, MousePointer2 } from "lucide-react";
+import { Mountain, Image, Bell, Users, TrendingUp, Sparkles, ShieldCheck, ArrowRight, Settings, BookOpen, Camera, MousePointer2, Search, Globe, Link as LinkIcon, Share2 } from "lucide-react";
 import { Link } from "react-router";
 import { useInquiries, useNotices, useTreks, useWebsiteAnalytics, useJournal, useGallery } from "../../data/useRealtimeData";
 import { isSupabaseConfigured, checkAndSetupStorage } from "../../data/supabaseData";
@@ -74,6 +74,15 @@ export function AdminDashboardPage() {
     .sort((a, b) => b.visits - a.visits)
     .slice(0, 5);
 
+  // Traffic Sources Breakdown
+  const sourceStats = pageViews.reduce((acc, event) => {
+    const src = event.referrerSource || "Direct";
+    acc[src] = (acc[src] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const sourceData = Object.entries(sourceStats).map(([name, value]) => ({ name, value }));
+
   const hourlyViewData = Array.from({ length: 12 }, (_, index) => {
     const slotStart = new Date();
     slotStart.setMinutes(0, 0, 0);
@@ -103,6 +112,7 @@ export function AdminDashboardPage() {
     { title: "Journal", description: "Blog & Stories", link: "/managepage/dashboard/journal", icon: BookOpen },
     { title: "Gallery", description: "Visual Assets", link: "/managepage/dashboard/gallery", icon: Camera },
     { title: "Inquiries", description: "Leads & Bookings", link: "/managepage/dashboard/inquiries", icon: Users },
+    { title: "Detailed Analytics", description: "Traffic & Sources", link: "/managepage/dashboard/analytics", icon: TrendingUp },
   ];
 
   const trafficChartConfig = {
@@ -164,112 +174,147 @@ export function AdminDashboardPage() {
               <h3 className="font-heading text-2xl">Traffic Overview</h3>
               <p className="text-sm text-muted-foreground">Live page views over the last 12 hours</p>
             </div>
-            <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-accent rounded-full" />
-                Views
-              </div>
+            <div className="flex items-center gap-3">
+              <Link to="/managepage/dashboard/analytics" className="px-4 py-2 bg-accent/10 text-accent rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-accent/20 transition-all">
+                Full Report
+              </Link>
             </div>
           </div>
 
-          <div className="h-[300px] w-full">
-            <ChartContainer config={trafficChartConfig}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={hourlyViewData}>
-                  <defs>
-                    <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-views)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="var(--color-views)" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
-                  <XAxis 
-                    dataKey="hour" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 10, fontWeight: 600 }}
-                  />
-                  <YAxis 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 10, fontWeight: 600 }}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="views" 
-                    stroke="var(--color-views)" 
-                    strokeWidth={3}
-                    fillOpacity={1} 
-                    fill="url(#colorViews)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+          <div className="h-[300px] w-full relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={hourlyViewData}>
+                <defs>
+                  <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#888" opacity={0.1} />
+                <XAxis 
+                  dataKey="hour" 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fontWeight: 600, fill: "#888" }}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fontWeight: 600, fill: "#888" }}
+                />
+                <Tooltip 
+                  contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="views" 
+                  stroke="#f43f5e" 
+                  strokeWidth={3}
+                  fillOpacity={1} 
+                  fill="url(#colorViews)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+            {hourlyViewData.every(d => d.views === 0) && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/40 backdrop-blur-[1px] rounded-2xl pointer-events-none">
+                <MousePointer2 className="w-8 h-8 text-accent/20 mb-2" />
+                <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60">Live feed waiting...</p>
+              </div>
+            )}
           </div>
         </motion.div>
 
-        {/* Top Locations */}
+        {/* Traffic Sources */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           className="glass-panel p-8"
         >
-          <h2 className="font-heading text-2xl mb-6">Top Countries</h2>
+          <h2 className="font-heading text-2xl mb-6">Traffic Sources</h2>
           <div className="space-y-6">
-            {countryRows.map((row) => (
-              <div key={row.country} className="space-y-2">
+            {(sourceData || []).map((row, i) => (
+              <div key={row.name} className="space-y-2">
                 <div className="flex justify-between text-sm font-medium">
-                  <span>{row.country}</span>
-                  <span className="text-accent">{row.visits} views</span>
+                  <div className="flex items-center gap-2">
+                    {row.name === "Search" && <Search className="w-3 h-3 text-blue-500" />}
+                    {row.name === "Social" && <Share2 className="w-3 h-3 text-pink-500" />}
+                    {row.name === "Referral" && <LinkIcon className="w-3 h-3 text-emerald-500" />}
+                    {row.name === "Direct" && <Globe className="w-3 h-3 text-muted-foreground" />}
+                    <span>{row.name}</span>
+                  </div>
+                  <span className="text-accent">{Math.round((row.value / (pageViews.length || 1)) * 100)}%</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${(row.visits / pageViews.length) * 100}%` }}
+                    animate={{ width: `${(row.value / (pageViews.length || 1)) * 100}%` }}
                     className="h-full bg-accent"
                   />
                 </div>
               </div>
             ))}
+            {(!sourceData || sourceData.length === 0) && <div className="text-center py-8 text-muted-foreground italic text-sm">Waiting for traffic data...</div>}
           </div>
         </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Top Locations */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="lg:col-span-1 glass-panel p-8"
+        >
+          <h2 className="font-heading text-2xl mb-6">Top Countries</h2>
+          <div className="space-y-6">
+            {(countryRows || []).map((row) => (
+              <div key={row.country} className="space-y-2">
+                <div className="flex justify-between text-sm font-medium">
+                  <span>{row.country}</span>
+                  <span className="text-accent">{row.visits}</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(row.visits / (pageViews.length || 1)) * 100}%` }}
+                    className="h-full bg-accent"
+                  />
+                </div>
+              </div>
+            ))}
+            {(!countryRows || countryRows.length === 0) && <div className="text-center py-8 text-muted-foreground italic text-sm">No location data yet</div>}
+          </div>
+        </motion.div>
+
         {/* Device Breakdown */}
-        <motion.div className="glass-panel p-8">
+        <motion.div className="glass-panel p-8 lg:col-span-1">
           <h2 className="font-heading text-2xl mb-8">Devices</h2>
           <div className="h-[200px]">
-            <ChartContainer config={{ 
-              Mobile: { label: "Mobile", color: "#f97316" },
-              Desktop: { label: "Desktop", color: "#3b82f6" },
-              Tablet: { label: "Tablet", color: "#10b981" }
-            }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={deviceData}
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {deviceData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={["#f97316", "#3b82f6", "#10b981"][index % 3]} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={deviceData}
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {(deviceData || []).map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={["#f97316", "#3b82f6", "#10b981"][index % 3]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-          <div className="flex justify-center gap-6 mt-6">
-            {deviceData.map((d, i) => (
+          <div className="flex flex-wrap justify-center gap-4 mt-6">
+            {(deviceData || []).map((d, i) => (
               <div key={d.name} className="flex flex-col items-center">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className={`w-3 h-3 rounded-full`} style={{ backgroundColor: ["#f97316", "#3b82f6", "#10b981"][i % 3] }} />
-                  <span className="text-xs font-bold">{d.name}</span>
+                  <div className={`w-2 h-2 rounded-full`} style={{ backgroundColor: ["#f97316", "#3b82f6", "#10b981"][i % 3] }} />
+                  <span className="text-[10px] font-bold uppercase tracking-tighter">{d.name}</span>
                 </div>
                 <div className="text-lg font-bold">{d.value}</div>
               </div>
@@ -281,7 +326,7 @@ export function AdminDashboardPage() {
         <motion.div className="lg:col-span-2 glass-panel p-8">
           <h2 className="font-heading text-2xl mb-8">Popular Pages</h2>
           <div className="space-y-4">
-            {topPages.map((page) => (
+            {(topPages || []).map((page) => (
               <div key={page.path} className="flex items-center justify-between p-4 rounded-2xl bg-muted/20 border border-border/50">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20">
@@ -295,6 +340,7 @@ export function AdminDashboardPage() {
                 </div>
               </div>
             ))}
+            {(!topPages || topPages.length === 0) && <div className="text-center py-8 text-muted-foreground italic text-sm">No page data yet</div>}
           </div>
         </motion.div>
       </div>
@@ -326,7 +372,7 @@ export function AdminDashboardPage() {
         <div className="lg:col-span-3 glass-panel p-8">
           <div className="flex items-center justify-between mb-8">
             <h2 className="font-heading text-2xl">Recent Leads</h2>
-            <Link to="/admin/dashboard/inquiries" className="text-accent hover:underline text-sm font-bold flex items-center gap-2">
+            <Link to="/managepage/dashboard/inquiries" className="text-accent hover:underline text-sm font-bold flex items-center gap-2">
               View All <ArrowRight className="w-4 h-4" />
             </Link>
           </div>

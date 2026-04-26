@@ -18,6 +18,7 @@ import { AdminInquiriesPage } from "./pages/admin/AdminInquiriesPage";
 import { AdminSettingsPage } from "./pages/admin/AdminSettingsPage";
 import { AdminJournalPage } from "./pages/admin/AdminJournalPage";
 import { AdminGalleryPage } from "./pages/admin/AdminGalleryPage";
+import { AdminAnalyticsPage } from "./pages/admin/AdminAnalyticsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
 export const router = createBrowserRouter([
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
           { path: "images", Component: AdminImagesPage },
           { path: "notices", Component: AdminNoticesPage },
           { path: "inquiries", Component: AdminInquiriesPage },
+          { path: "analytics", Component: AdminAnalyticsPage },
           { path: "settings", Component: AdminSettingsPage },
         ],
       },
