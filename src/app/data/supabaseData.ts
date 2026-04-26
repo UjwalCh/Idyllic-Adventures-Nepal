@@ -873,9 +873,12 @@ function getSessionId(): string {
   if (existing) return existing;
 
   // Robust universal ID generation
-  const newId = typeof crypto !== 'undefined' && crypto.randomUUID 
-    ? crypto.randomUUID() 
-    : `id-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+  let newId: string;
+  try {
+    newId = crypto.randomUUID();
+  } catch (e) {
+    newId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  }
     
   try {
     window.localStorage.setItem(key, newId);
