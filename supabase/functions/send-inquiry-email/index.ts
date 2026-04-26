@@ -83,10 +83,13 @@ serve(async (req) => {
   const isEnabled = settings["enquiry_notifications_enabled"] === "true";
   const alertEmailTo = settings["enquiry_email"] || "ujwlchapagai@gmail.com";
 
+  console.log(`Notification status: ${isEnabled} (Setting: ${settings["enquiry_notifications_enabled"]})`);
+  console.log(`Alert Email To: ${alertEmailTo}`);
+
   // 2. Check if notifications are disabled
-  if (!isEnabled) {
-    console.log("Notifications are disabled in settings. Skipping email.");
-    return new Response(JSON.stringify({ ok: true, message: "Notifications disabled" }), {
+  if (isEnabled !== true) {
+    console.log("Notifications are OFF. Skipping email delivery.");
+    return new Response(JSON.stringify({ ok: true, message: "Notifications skipped (disabled)" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -136,11 +136,32 @@ declare
   resend_api_key text;
   alert_email_to text;
   alert_email_from text;
+  is_enabled text;
   payload jsonb;
 begin
+  -- 1. Check if notifications are enabled in settings
+  select value into is_enabled
+  from public.site_settings
+  where key = 'enquiry_notifications_enabled'
+  limit 1;
+
+  if coalesce(is_enabled, 'false') != 'true' then
+    return new;
+  end if;
+
+  -- 2. Fetch destination email from settings
+  select value into alert_email_to
+  from public.site_settings
+  where key = 'enquiry_email'
+  limit 1;
+
   resend_api_key := private.get_secret('resend_api_key');
-  alert_email_to := private.get_secret('alert_email_to');
   alert_email_from := private.get_secret('alert_email_from');
+
+  -- Fallback to secret if setting is missing
+  if coalesce(alert_email_to, '') = '' then
+    alert_email_to := private.get_secret('alert_email_to');
+  end if;
 
   if coalesce(resend_api_key, '') = '' or coalesce(alert_email_to, '') = '' then
     return new;
@@ -463,8 +484,8 @@ values
   ('location', 'Pokhara, Nepal', 'Primary business location'),
   ('phone_1', '+977 1234567890', 'Primary phone number'),
   ('phone_2', '+977 9876543210', 'Secondary phone number'),
-  ('email_main', 'info@idyllicadventures.com', 'Main contact email'),
-  ('email_booking', 'booking@idyllicadventures.com', 'Booking email'),
+  ('email_main', 'ujwlchapagai@gmail.com', 'Main contact email'),
+  ('email_booking', 'ujwlchapagai@gmail.com', 'Booking email'),
   ('whatsapp_number', '+977 9876543210', 'WhatsApp contact number'),
   ('nav_brand_name', 'Idyllic Adventures', 'Navigation brand title'),
   ('nav_brand_tagline', 'Explore Nepal', 'Navigation subtitle'),
