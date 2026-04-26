@@ -5,11 +5,11 @@ import { Mountain, Lock, User } from "lucide-react";
 import { toast } from "sonner";
 import { isSupabaseConfigured } from "../../data/supabaseData";
 import { signInAdmin } from "../../data/auth";
-import { useSiteSettings } from "../../data/useRealtimeData";
+import { useBranding } from "../../data/useBranding";
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
-  const { settings } = useSiteSettings();
+  const { settings } = useBranding();
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
 

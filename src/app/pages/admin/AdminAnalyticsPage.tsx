@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router";
 import { useWebsiteAnalytics } from "../../data/useRealtimeData";
+import { isSupabaseConfigured } from "../../data/supabaseData";
 import { 
   Area, 
   AreaChart, 
@@ -227,9 +228,14 @@ export function AdminAnalyticsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
+          <div className={`flex items-center gap-2 px-4 py-2 border rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${isSupabaseConfigured ? "bg-emerald-500/5 border-emerald-500/10 text-emerald-500" : "bg-rose-500/5 border-rose-500/10 text-rose-500 animate-pulse"}`}>
+            <div className={`w-2 h-2 rounded-full ${isSupabaseConfigured ? "bg-emerald-500" : "bg-rose-500"} ${stats.active > 0 ? "animate-pulse" : ""}`} />
+            {isSupabaseConfigured ? "Engine Online" : "Engine Offline (Check Keys)"}
+          </div>
+          
           <div className="flex items-center gap-2 px-4 py-2 bg-accent/5 border border-accent/10 rounded-2xl text-[10px] font-bold text-accent uppercase tracking-widest">
-            <div className={`w-2 h-2 rounded-full animate-pulse ${stats.active > 0 ? "bg-emerald-500" : "bg-accent"}`} />
-            {stats.active > 0 ? "Site Active" : "System Standby"} • {lastSync.toLocaleTimeString()}
+            <Clock className="w-3 h-3" />
+            Last Sync: {lastSync.toLocaleTimeString()}
           </div>
           
           <div className="flex bg-muted/50 p-1 rounded-2xl border border-border/50">

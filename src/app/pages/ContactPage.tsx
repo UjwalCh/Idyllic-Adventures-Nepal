@@ -102,8 +102,9 @@ export function ContactPage() {
       toast.success("Submitted successfully. I will contact you soon.");
       resetForm();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not submit your inquiry";
-      toast.error(message);
+      console.error("Submission Error:", error);
+      const message = error instanceof Error ? error.message : "Submission failed";
+      toast.error(`❌ ${message}`);
     } finally {
       setSubmitting(false);
     }

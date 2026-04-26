@@ -33,7 +33,7 @@ export function HomePage() {
         <div className="flex flex-wrap justify-center gap-4">
           <Link
             to="/treks"
-            className="group px-8 py-4 bg-secondary hover:bg-secondary/90 text-primary rounded-lg transition-all flex items-center gap-2 shadow-lg hover:shadow-secondary/20"
+            className="group px-8 py-4 bg-secondary hover:bg-secondary/90 text-slate-900 rounded-lg transition-all flex items-center gap-2 shadow-lg hover:shadow-secondary/20 font-bold"
           >
             <span>Explore Treks</span>
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -43,7 +43,7 @@ export function HomePage() {
             onClick={() => {
               void trackWebsiteEvent("cta_click", "home-hero-contact");
             }}
-            className="px-8 py-4 bg-white hover:bg-white/90 text-primary rounded-lg transition-all border border-white/20 shadow-lg font-bold"
+            className="px-8 py-4 bg-white hover:bg-white/90 text-slate-900 rounded-lg transition-all border border-white/20 shadow-lg font-bold"
           >
             Contact Us
           </Link>
@@ -185,7 +185,7 @@ export function HomePage() {
                 onClick={() => {
                   void trackWebsiteEvent("cta_click", "home-footer-cta");
                 }}
-                className="inline-flex items-center gap-3 px-12 py-6 bg-secondary text-primary font-bold rounded-2xl hover:bg-white hover:scale-105 transition-all shadow-2xl"
+                className="inline-flex items-center gap-3 px-12 py-6 bg-secondary text-slate-900 font-bold rounded-2xl hover:bg-white hover:scale-105 transition-all shadow-2xl"
               >
                 <span className="text-xl">{settings.home_cta_button_label || "Begin Your Adventure"}</span>
                 <ArrowRight className="w-6 h-6" />

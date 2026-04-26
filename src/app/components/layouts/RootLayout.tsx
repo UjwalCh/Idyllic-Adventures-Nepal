@@ -4,7 +4,8 @@ import { Footer } from "../Footer";
 import { WebsiteAnalyticsTracker } from "../WebsiteAnalyticsTracker";
 import ScrollToTop from "../ScrollToTop";
 import { motion, useScroll } from "motion/react";
-import { useNotices, useSiteSettings } from "../../data/useRealtimeData";
+import { useNotices } from "../../data/useRealtimeData";
+import { useBranding } from "../../data/useBranding";
 import { FloatingAction } from "../ui/FloatingAction";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "../ui/sonner";
@@ -12,43 +13,7 @@ import { useEffect } from "react";
 
 export function RootLayout() {
   const { notices } = useNotices();
-  const { settings } = useSiteSettings();
-
-  // Dynamic SEO Updates
-  useEffect(() => {
-    if (settings.seo_title) {
-      document.title = settings.seo_title;
-    }
-
-    // Dynamic Favicon
-    if (settings.site_logo) {
-      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-      if (!link) {
-        link = document.createElement('link');
-        link.rel = 'icon';
-        document.head.appendChild(link);
-      }
-      link.href = settings.site_logo;
-    }
-
-    // Meta Description
-    let metaDesc = document.querySelector('meta[name="description"]');
-    if (!metaDesc) {
-      metaDesc = document.createElement('meta');
-      metaDesc.setAttribute('name', 'description');
-      document.head.appendChild(metaDesc);
-    }
-    metaDesc.setAttribute('content', settings.seo_description || "Expert trekking adventures in the Himalayas of Nepal.");
-
-    // Meta Keywords
-    let metaKeywords = document.querySelector('meta[name="keywords"]');
-    if (!metaKeywords) {
-      metaKeywords = document.createElement('meta');
-      metaKeywords.setAttribute('name', 'keywords');
-      document.head.appendChild(metaKeywords);
-    }
-    metaKeywords.setAttribute('content', settings.seo_keywords || "trekking, nepal, himalayas, adventure, guide");
-  }, [settings]);
+  const { settings } = useBranding();
 
   const { scrollYProgress } = useScroll();
 

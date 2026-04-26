@@ -229,8 +229,8 @@ export async function checkRateLimit(ipAddress: string): Promise<{ allowed: bool
       .lt('created_at', now.toISOString());
 
     if (hourError) throw hourError;
-    if ((hourData?.length ?? 0) >= 1) {
-      return { allowed: false, reason: 'Too many submissions in the last hour. Please try again later.' };
+    if ((hourData?.length ?? 0) >= 3) {
+      return { allowed: false, reason: 'You have reached the submission limit for this hour. Please try again in a while.' };
     }
 
     // Check submissions in last 24 hours
@@ -242,8 +242,8 @@ export async function checkRateLimit(ipAddress: string): Promise<{ allowed: bool
       .lt('created_at', now.toISOString());
 
     if (dayError) throw dayError;
-    if ((dayData?.length ?? 0) >= 5) {
-      return { allowed: false, reason: 'Maximum submissions per day exceeded. Please try again tomorrow.' };
+    if ((dayData?.length ?? 0) >= 10) {
+      return { allowed: false, reason: 'Maximum daily submissions exceeded. Please try again tomorrow.' };
     }
 
     return { allowed: true };

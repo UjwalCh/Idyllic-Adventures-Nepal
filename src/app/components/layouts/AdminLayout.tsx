@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import { getCurrentSession, signOutAdmin, subscribeToAuthChanges } from "../../data/auth";
 import { useTheme, ThemeProvider } from "next-themes";
 import { Toaster } from "../ui/sonner";
-import { useSiteSettings } from "../../data/useRealtimeData";
+import { useBranding } from "../../data/useBranding";
 import { WebsiteAnalyticsTracker } from "../WebsiteAnalyticsTracker";
 
 export function AdminLayout() {
@@ -33,7 +33,7 @@ export function AdminLayout() {
 function AdminLayoutContent() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { settings } = useSiteSettings();
+  const { settings } = useBranding();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const { theme, setTheme } = useTheme();
