@@ -1402,10 +1402,26 @@ export async function updateJournalEntry(id: string, patch: Partial<JournalEntry
   if (!supabase) return;
 
   const updateData: any = { ...patch };
-  if (patch.authorName !== undefined) updateData.author_name = patch.authorName;
-  if (patch.authorRole !== undefined) updateData.author_role = patch.authorRole;
-  if (patch.authorBio !== undefined) updateData.author_bio = patch.authorBio;
-  if (patch.authorImage !== undefined) updateData.author_image = patch.authorImage;
+  
+  // Map camelCase to snake_case and remove original keys to avoid DB errors
+  if (patch.authorName !== undefined) {
+    updateData.author_name = patch.authorName;
+    delete updateData.authorName;
+  }
+  if (patch.authorRole !== undefined) {
+    updateData.author_role = patch.authorRole;
+    delete updateData.authorRole;
+  }
+  if (patch.authorBio !== undefined) {
+    updateData.author_bio = patch.authorBio;
+    delete updateData.authorBio;
+  }
+  if (patch.authorImage !== undefined) {
+    updateData.author_image = patch.authorImage;
+    delete updateData.authorImage;
+  }
+  if (patch.createdAt !== undefined) delete updateData.createdAt;
+  if (patch.updatedAt !== undefined) delete updateData.updatedAt;
 
   const { error } = await supabase
     .from("journal_entries")

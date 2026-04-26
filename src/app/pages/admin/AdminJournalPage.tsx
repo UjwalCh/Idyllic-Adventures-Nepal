@@ -116,14 +116,15 @@ export function AdminJournalPage() {
     try {
       if (editingId) {
         await updateJournalEntry(editingId, formState);
-        toast.success("Journal entry updated!");
       } else {
         await createJournalEntry(formState);
-        toast.success("Journal entry created!");
       }
+      toast.success(editingId ? "Journal entry updated!" : "Journal entry created!");
       setIsFormOpen(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save entry");
+      console.error("Journal Save Error:", err);
+      const message = err instanceof Error ? err.message : "Failed to save entry";
+      toast.error(`❌ ${message}`);
     } finally {
       setIsSaving(false);
     }
