@@ -53,14 +53,18 @@ export function AdminAnalyticsPage() {
 
   // Data Filtering & Logic
   const filteredEvents = useMemo(() => {
-    const now = Date.now();
+    if (events.length === 0) return [];
+    
+    // Use the absolute newest event as 'now' to fix timezone sync issues
+    const masterNow = new Date(events[0].createdAt).getTime();
+    
     const rangeMs = {
       "24h": 24 * 60 * 60 * 1000,
       "7d": 7 * 24 * 60 * 60 * 1000,
       "30d": 30 * 24 * 60 * 60 * 1000,
     }[timeRange];
     
-    return events.filter(e => (now - new Date(e.createdAt).getTime()) <= rangeMs);
+    return events.filter(e => (masterNow - new Date(e.createdAt).getTime()) <= rangeMs);
   }, [events, timeRange]);
 
   const stats = useMemo(() => {
@@ -74,13 +78,27 @@ export function AdminAnalyticsPage() {
       sessions.set(e.sessionId, s);
     });
 
-    const totalDuration = Array.from(sessions.values()).reduce((acc, s) => acc + (s.end - s.start), 0) / 1000;
+    const totalDuration = Array.from(sessions.values()).reduce((acc, s: any) => {
+      const duration = s.end - s.start;
+      return acc + (duration > 0 ? duration : 10000); // 10s minimum for single-hit views
+    }, 0) / 1000;
+
     const bounces = Array.from(sessions.values()).filter((s: any) => s.views === 1).length;
     const returning = Array.from(sessions.values()).filter((s: any) => s.views > 1).length;
     
-    // Real-time Active (5-min window)
-    const fiveMinAgo = Date.now() - 5 * 60 * 1000;
-    const active = new Set(events.filter(e => new Date(e.createdAt).getTime() > fiveMinAgo).map(e => e.sessionId)).size;
+    // Real-time Active (2-min window)
+    const masterNow = events.length > 0 ? new Date(events[0].createdAt).getTime() : Date.now();
+    const activeWindow = 2 * 60 * 1000;
+    const active = new Set(
+      events
+        .filter(e => {
+          const age = masterNow - new Date(e.createdAt).getTime();
+          return age >= 0 && age < activeWindow;
+        })
+        .map(e => e.sessionId)
+    ).size;
+
+    console.log(`📊 Analytics Calc: ${events.length} events, ${active} active.`);
 
     return {
       views: filteredEvents.length,
@@ -228,9 +246,12 @@ export function AdminAnalyticsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-          <div className={`flex items-center gap-2 px-4 py-2 border rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${isSupabaseConfigured ? "bg-emerald-500/5 border-emerald-500/10 text-emerald-500" : "bg-rose-500/5 border-rose-500/10 text-rose-500 animate-pulse"}`}>
+          <div 
+            onClick={() => !isSupabaseConfigured && toast.error("Supabase Keys Missing! Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your Vercel/Netlify settings.")}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all cursor-help ${isSupabaseConfigured ? "bg-emerald-500/5 border-emerald-500/10 text-emerald-500" : "bg-rose-500/5 border-rose-500/10 text-rose-500 animate-pulse"}`}
+          >
             <div className={`w-2 h-2 rounded-full ${isSupabaseConfigured ? "bg-emerald-500" : "bg-rose-500"} ${stats.active > 0 ? "animate-pulse" : ""}`} />
-            {isSupabaseConfigured ? "Engine Online" : "Engine Offline (Check Keys)"}
+            {isSupabaseConfigured ? "Intelligence Engine Online" : "Configuration Error (Click for Details)"}
           </div>
           
           <div className="flex items-center gap-2 px-4 py-2 bg-accent/5 border border-accent/10 rounded-2xl text-[10px] font-bold text-accent uppercase tracking-widest">
@@ -265,7 +286,19 @@ export function AdminAnalyticsPage() {
       <div ref={reportRef} className="space-y-8">
         {/* Elite Pulse Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`glass-panel p-8 border-2 transition-colors ${stats.active > 0 ? "bg-emerald-500/5 border-emerald-500/20" : "bg-accent/5 border-accent/20"}`}>
+          <motion.div 
+            key={"live-status-" + stats.active}
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ 
+              opacity: 1, 
+              y: 0,
+              scale: [1, 1.02, 1],
+            }} 
+            transition={{ 
+              scale: { duration: 0.3, times: [0, 0.5, 1] }
+            }}
+            className={`glass-panel p-8 border-2 transition-colors ${stats.active > 0 ? "bg-emerald-500/5 border-emerald-500/20" : "bg-accent/5 border-accent/20"}`}
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 text-accent text-[10px] font-bold uppercase tracking-widest">
                 <div className={`w-1.5 h-1.5 rounded-full animate-ping ${stats.active > 0 ? "bg-emerald-500" : "bg-accent"}`} />
@@ -286,8 +319,17 @@ export function AdminAnalyticsPage() {
             <motion.div 
               key={item.label}
               initial={{ opacity: 0, y: 20 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ delay: 0.1 * (idx + 1) }}
+              animate={{ 
+                opacity: 1, 
+                y: 0,
+                scale: [1, 1.02, 1],
+              }} 
+              transition={{ 
+                opacity: { delay: 0.1 * (idx + 1) },
+                y: { delay: 0.1 * (idx + 1) },
+                scale: { duration: 0.3, times: [0, 0.5, 1] }
+              }}
+              key={item.label + item.value} // Key change triggers re-animation
               className="glass-panel p-8"
             >
               <div className={`w-10 h-10 rounded-xl ${item.bg} flex items-center justify-center mb-6`}>

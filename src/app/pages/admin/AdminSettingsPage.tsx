@@ -86,6 +86,13 @@ const SITE_SETTING_CATEGORIES = [
           { key: "social_youtube", label: "YouTube URL", icon: Youtube },
           { key: "footer_description", label: "Footer Bio / Description", multiline: true },
         ]
+      },
+      {
+        title: "Enquiry Alerts",
+        fields: [
+          { key: "enquiry_notifications_enabled", label: "Email Notifications", isToggle: true },
+          { key: "enquiry_email", label: "Notification Email", icon: Mail, placeholder: "Where to send leads?" },
+        ]
       }
     ]
   },
@@ -219,7 +226,7 @@ const DEFAULT_SITE_SETTINGS: Record<string, string> = {
   nav_brand_name: "Idyllic Adventures",
   nav_brand_tagline: "Explore. Experience. Enjoy.",
   location: "Kathmandu, Nepal",
-  email_main: "info@idyllicadventuresnepal.com",
+  email_main: "ujwlchapagai@gmail.com",
   phone_1: "+977 1234567890",
   home_hero_image: "https://images.unsplash.com/photo-1690122601365-77d6ee21e998?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
   home_hero_badge: "Explore the Himalayas",
@@ -239,6 +246,8 @@ const DEFAULT_SITE_SETTINGS: Record<string, string> = {
   about_guide_role: "Lead Guide",
   seo_title: "Idyllic Adventures Nepal",
   admin_hotkeys: "Shift+A",
+  enquiry_notifications_enabled: "true",
+  enquiry_email: "ujwlchapagai@gmail.com",
 };
 
 type SubmissionLog = {
@@ -743,6 +752,13 @@ export function AdminSettingsPage() {
                                 <p className="text-[10px] text-muted-foreground">Upload a file or paste a direct URL to the image.</p>
                               </div>
                             </div>
+                          ) : field.isToggle ? (
+                            <button 
+                              onClick={() => updateField(field.key, value === "true" ? "false" : "true")}
+                              className={`relative w-14 h-7 rounded-full transition-all duration-300 ${value === "true" ? "bg-accent shadow-[0_0_15px_rgba(var(--accent),0.4)]" : "bg-muted"}`}
+                            >
+                              <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-all duration-300 transform ${value === "true" ? "translate-x-7" : ""}`} />
+                            </button>
                           ) : field.multiline ? (
                             <textarea 
                               value={value}

@@ -50,13 +50,44 @@ serve(async (req) => {
     });
   }
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  const alertEmailTo = Deno.env.get("ALERT_EMAIL_TO");
   const alertEmailFrom = Deno.env.get("ALERT_EMAIL_FROM") || "Idyllic Alerts <onboarding@resend.dev>";
 
-  if (!resendApiKey || !alertEmailTo) {
-    return new Response(JSON.stringify({ error: "Missing RESEND_API_KEY or ALERT_EMAIL_TO" }), {
+  if (!supabaseUrl || !supabaseServiceRoleKey || !resendApiKey) {
+    return new Response(JSON.stringify({ error: "Missing environment variables" }), {
       status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Initialize Supabase Client
+  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.42.0");
+  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+  // 1. Fetch Notification Settings
+  const { data: settingsData, error: settingsError } = await supabase
+    .from("site_settings")
+    .select("key, value");
+
+  if (settingsError) {
+    console.error("Failed to fetch settings:", settingsError);
+  }
+
+  const settings: Record<string, string> = {};
+  (settingsData || []).forEach((row: { key: string; value: string }) => {
+    settings[row.key] = row.value;
+  });
+
+  const isEnabled = settings["enquiry_notifications_enabled"] === "true";
+  const alertEmailTo = settings["enquiry_email"] || "ujwlchapagai@gmail.com";
+
+  // 2. Check if notifications are disabled
+  if (!isEnabled) {
+    console.log("Notifications are disabled in settings. Skipping email.");
+    return new Response(JSON.stringify({ ok: true, message: "Notifications disabled" }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

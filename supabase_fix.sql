@@ -1,18 +1,25 @@
--- 3. JOURNAL AUTHOR FIX (FINAL)
--- Run this to add the missing Author columns so you can save your stories!
+-- 4. ANALYTICS & REALTIME FIX
+-- Run this to enable LIVE visitor tracking on your dashboard!
 
-alter table public.journal_entries 
-add column if not exists author_name text default 'Ujwal Chhetri',
-add column if not exists author_role text default 'Lead Trek Leader',
-add column if not exists author_image text,
-add column if not exists author_bio text;
+-- Enable Row Level Security
+alter table public.website_events enable row level security;
 
--- FIXED: Use DROP then CREATE (PostgreSQL doesn't support IF NOT EXISTS for policies)
-drop policy if exists "Allow authenticated users to manage journal" on public.journal_entries;
+-- Wipe old policies
+drop policy if exists "Allow public to insert website_events" on public.website_events;
 
-create policy "Allow authenticated users to manage journal"
-on public.journal_entries
-for all
-to authenticated
-using (true)
-with check (true);
+-- Allow visitors to send their location and page view data
+create policy "Allow public to insert website_events"
+on public.website_events for insert to anon with check (true);
+
+-- Enable REALTIME (The "Live Switch")
+-- This makes your dashboard update INSTANTLY when someone visits
+alter publication supabase_realtime add table website_events;
+
+-- Grant permissions to public
+grant insert on table public.website_events to anon;
+
+-- 5. ENQUIRY NOTIFICATION SETTINGS
+-- These settings allow you to control email alerts from the Admin Panel.
+-- Your email sending function (Edge Function) should now query 'site_settings':
+--   - enquiry_notifications_enabled (true/false)
+--   - enquiry_email (The destination address)

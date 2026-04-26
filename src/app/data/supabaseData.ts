@@ -979,10 +979,12 @@ export async function trackWebsiteEvent(
     const referrer = document.referrer || null;
     const userAgent = navigator.userAgent;
     
-    // Quick location lookup (Parallel/Background)
-    const loc = await loadVisitorLocation();
+    // Non-blocking location lookup
+    // We fire the insert and don't wait for the location if it's not already cached
+    const cachedLoc = window.sessionStorage.getItem(VISITOR_LOCATION_CACHE_KEY);
+    const loc = cachedLoc ? JSON.parse(cachedLoc) : null;
 
-    await supabase.from("website_events").insert({
+    const eventData = {
       event_type: eventType,
       path: trimmedPath,
       referrer,
@@ -995,10 +997,21 @@ export async function trackWebsiteEvent(
       city: loc?.city || "Unknown",
       country_code: loc?.countryCode || null,
       location_label: loc?.timezone || loc?.locationLabel || null,
-    });
+    };
+
+    // If we don't have location yet, fire it off in the background to cache for NEXT events
+    if (!loc) {
+      void loadVisitorLocation();
+    }
+
+    const { error } = await supabase.from("website_events").insert(eventData);
+    if (error) {
+      // Log to console but don't crash
+      console.warn("Tracking silenced by DB:", error.message);
+    }
   } catch (e) {
-    // Silent fail to keep site heavy-load free
-    console.error("Analytics standby.");
+    // Silent fail to keep site performance high
+    console.warn("Analytics standby mode.");
   }
 }
 

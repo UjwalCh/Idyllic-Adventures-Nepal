@@ -134,7 +134,7 @@ export function ContactPage() {
     {
       icon: <Mail className="w-6 h-6 text-accent" />,
       title: "Email Us",
-      details: [settings.email_main || "info@idyllicadventures.com", settings.email_booking || "booking@idyllicadventures.com"],
+      details: [settings.email_main || "ujwlchapagai@gmail.com"],
     },
     {
       icon: <MessageCircle className="w-6 h-6 text-accent" />,

@@ -49,7 +49,7 @@ export function Footer() {
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Mail className="w-4 h-4 flex-shrink-0 text-accent" />
-                <span>{settings.email_main || "info@idyllicadventures.com"}</span>
+                <span>{settings.email_main || "ujwlchapagai@gmail.com"}</span>
               </div>
             </div>
           </div>
