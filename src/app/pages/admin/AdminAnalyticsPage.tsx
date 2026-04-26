@@ -10,7 +10,8 @@ import {
   ArrowLeft,
   ChevronRight,
   Globe,
-  Monitor
+  Monitor,
+  TrendingUp
 } from "lucide-react";
 import { Link } from "react-router";
 import { useWebsiteAnalytics } from "../../data/useRealtimeData";
