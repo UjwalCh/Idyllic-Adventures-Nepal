@@ -103,7 +103,10 @@ function AdminLayoutContent() {
       <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col">
         <div className="p-6">
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-16 h-16 flex items-center justify-center overflow-hidden transition-transform hover:scale-110">
+            <div 
+              onDoubleClick={() => navigate("/managepage")}
+              className="w-16 h-16 flex items-center justify-center overflow-hidden transition-transform hover:scale-110 cursor-pointer"
+            >
                {settings.site_logo ? (
                  <img src={settings.site_logo} alt="Logo" className="w-full h-full object-contain" />
                ) : (

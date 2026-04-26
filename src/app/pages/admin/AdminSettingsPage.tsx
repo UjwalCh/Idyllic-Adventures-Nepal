@@ -499,15 +499,50 @@ export function AdminSettingsPage() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {section.fields.map((field) => (
-                            <div key={field.key} className="space-y-2">
+                            <div key={field.key} className="space-y-4">
                               <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{field.label}</label>
-                              <input 
-                                value={siteSettings[field.key] || ""}
-                                onChange={(e) => updateField(field.key, e.target.value)}
-                                placeholder={field.placeholder || ""}
-                                className="w-full px-4 py-3 bg-input-background border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-accent transition-all font-mono"
-                              />
-                              <p className="text-[10px] text-muted-foreground">Example: <strong>Shift+A</strong> or <strong>Ctrl+Alt+M</strong></p>
+                              
+                              <div className="relative group">
+                                <input 
+                                  readOnly
+                                  value={siteSettings[field.key] || ""}
+                                  placeholder="Click to record hotkey..."
+                                  onKeyDown={(e) => {
+                                    e.preventDefault();
+                                    const keys = [];
+                                    if (e.ctrlKey) keys.push("Ctrl");
+                                    if (e.shiftKey) keys.push("Shift");
+                                    if (e.altKey) keys.push("Alt");
+                                    if (e.metaKey) keys.push("Meta");
+                                    
+                                    const key = e.key;
+                                    if (!["Control", "Shift", "Alt", "Meta"].includes(key)) {
+                                      keys.push(key.toUpperCase());
+                                      updateField(field.key, keys.join("+"));
+                                    }
+                                  }}
+                                  className="w-full px-5 py-4 bg-primary/5 border-2 border-dashed border-border rounded-2xl text-lg font-mono text-center focus:border-accent focus:bg-accent/5 outline-none transition-all cursor-pointer"
+                                />
+                                <div className="absolute inset-y-0 right-4 flex items-center">
+                                  <div className="px-2 py-1 bg-muted rounded text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">REC</div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                <p className="text-[10px] text-muted-foreground w-full">Current Sequence: <span className="text-accent font-bold">{siteSettings[field.key] || "None"}</span></p>
+                                <button 
+                                  onClick={() => updateField(field.key, "Shift+A")}
+                                  className="text-[10px] bg-muted px-2 py-1 rounded hover:bg-accent hover:text-white transition-colors"
+                                >
+                                  Default (Shift+A)
+                                </button>
+                                <button 
+                                  onClick={() => updateField(field.key, "")}
+                                  className="text-[10px] bg-red-500/10 text-red-500 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition-colors"
+                                >
+                                  Clear
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>

@@ -16,22 +16,36 @@ export function Navigation() {
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
-  // Secret Shortcut: Shift + A
+  // Secret Sequence Listener (e.g. "ADMIN" or custom)
+  const [keyBuffer, setKeyBuffer] = useState("");
+  
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Ignore if typing in an input
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (
+        activeEl.tagName === "INPUT" || 
+        activeEl.tagName === "TEXTAREA" || 
+        activeEl.isContentEditable
+      );
+      if (isTyping) return;
+
+      // 2. Secret Sequence Logic
+      const newBuffer = (keyBuffer + e.key.toUpperCase()).slice(-10);
+      setKeyBuffer(newBuffer);
+
+      // 3. Hotkey Logic (Only if not typing)
       if (settings.admin_hotkeys) {
         const keys = settings.admin_hotkeys.split("+").map(k => k.trim().toLowerCase());
         const isShift = keys.includes("shift");
         const isCtrl = keys.includes("ctrl") || keys.includes("control");
-        const isAlt = keys.includes("alt");
         const targetKey = keys.find(k => !["shift", "ctrl", "control", "alt"].includes(k));
 
         const matchShift = isShift ? e.shiftKey : true;
         const matchCtrl = isCtrl ? (e.ctrlKey || e.metaKey) : true;
-        const matchAlt = isAlt ? e.altKey : true;
         const matchKey = targetKey ? e.key.toLowerCase() === targetKey : true;
 
-        if (matchShift && matchCtrl && matchAlt && matchKey && targetKey) {
+        if (matchShift && matchCtrl && matchKey && targetKey) {
           e.preventDefault();
           navigate("/managepage");
         }
@@ -39,10 +53,16 @@ export function Navigation() {
         e.preventDefault();
         navigate("/managepage");
       }
+
+      // Check for secret word sequence (Fallback/Custom)
+      if (newBuffer.endsWith("ADMIN")) {
+        navigate("/managepage");
+      }
     };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [navigate]);
+  }, [navigate, settings.admin_hotkeys, keyBuffer]);
 
   useEffect(() => {
     setMounted(true);
@@ -73,7 +93,11 @@ export function Navigation() {
       >
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex items-center justify-between h-28">
-            <Link to="/" className="flex items-center gap-3 group">
+            <Link 
+              to="/" 
+              onDoubleClick={() => navigate("/managepage")}
+              className="flex items-center gap-3 group"
+            >
               <div className="flex items-center justify-center overflow-hidden w-20 h-20 transition-transform duration-500 group-hover:scale-105">
                 <AnimatePresence mode="wait">
                   {settings.site_logo ? (
