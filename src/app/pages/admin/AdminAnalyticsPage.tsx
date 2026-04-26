@@ -75,6 +75,7 @@ export function AdminAnalyticsPage() {
 
     const totalDuration = Array.from(sessions.values()).reduce((acc, s) => acc + (s.end - s.start), 0) / 1000;
     const bounces = Array.from(sessions.values()).filter((s: any) => s.views === 1).length;
+    const returning = Array.from(sessions.values()).filter((s: any) => s.views > 1).length;
     
     // Real-time Active (5-min window)
     const fiveMinAgo = Date.now() - 5 * 60 * 1000;
@@ -84,6 +85,7 @@ export function AdminAnalyticsPage() {
       views: filteredEvents.length,
       visitors: sessions.size,
       bounce: Math.round((bounces / (sessions.size || 1)) * 100),
+      loyalty: Math.round((returning / (sessions.size || 1)) * 100),
       duration: Math.round(totalDuration / (sessions.size || 1)),
       active
     };
@@ -105,10 +107,10 @@ export function AdminAnalyticsPage() {
       visitors: h.visitors.size
     })).reverse();
 
-    // Devices, Browsers & Countries
+    // Devices & Geography
     const devices: Record<string, number> = {};
     const sources: Record<string, number> = {};
-    const countries: Record<string, number> = {};
+    const countries: Record<string, any> = {};
 
     filteredEvents.forEach(e => {
       const dev = e.userAgent?.includes("Mobile") ? "Mobile" : "Desktop";
@@ -117,23 +119,54 @@ export function AdminAnalyticsPage() {
       const src = e.referrerSource || "Direct";
       sources[src] = (sources[src] || 0) + 1;
 
-      const country = e.country || "Unknown";
-      countries[country] = (countries[country] || 0) + 1;
+      const cName = e.country || "Global";
+      if (!countries[cName]) countries[cName] = { name: cName, count: 0, lastVisit: e.createdAt, timezone: e.locationLabel || "UTC" };
+      countries[cName].count++;
+      if (new Date(e.createdAt) > new Date(countries[cName].lastVisit)) {
+        countries[cName].lastVisit = e.createdAt;
+        countries[cName].timezone = e.locationLabel || "UTC";
+      }
     });
+
+    const getRelativeTime = (dateStr: string) => {
+      const diff = Date.now() - new Date(dateStr).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return "Just now";
+      if (mins < 60) return `${mins}m ago`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return `${hours}h ago`;
+      return `${Math.floor(hours / 24)}d ago`;
+    };
+
+    const formatInTimezone = (dateStr: string, timezone: string, country?: string) => {
+      try {
+        // SPECIAL CASE FOR NEPAL (UTC +5:45)
+        if (country === "Nepal" || timezone === "Asia/Kathmandu") {
+          const date = new Date(dateStr);
+          const npt = new Date(date.getTime() + (5.75 * 60 * 60 * 1000));
+          return npt.getUTCHours() + ":" + npt.getUTCMinutes().toString().padStart(2, "0") + (npt.getUTCHours() >= 12 ? " PM" : " AM");
+        }
+
+        return new Intl.DateTimeFormat("en-US", {
+          timeStyle: "short",
+          timeZone: timezone.includes("/") ? timezone : "UTC"
+        }).format(new Date(dateStr));
+      } catch (e) {
+        return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    };
 
     return {
       traffic,
       devices: Object.entries(devices).map(([name, value]) => ({ name, value })),
       sources: Object.entries(sources).map(([name, value]) => ({ name, value })),
-      countries: Object.entries(countries)
-        .map(([name, value]) => {
-          const lastEvent = filteredEvents.find(e => (e.country || "Unknown") === name);
-          return { 
-            name, 
-            value, 
-            lastVisit: lastEvent ? new Date(lastEvent.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A"
-          };
-        })
+      countries: Object.values(countries)
+        .map((c: any) => ({
+          name: c.name,
+          value: c.count,
+          relativeTime: getRelativeTime(c.lastVisit),
+          localTime: formatInTimezone(c.lastVisit, c.timezone, c.name)
+        }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 6)
     };
@@ -142,6 +175,7 @@ export function AdminAnalyticsPage() {
   const topPages = useMemo(() => {
     const pages: Record<string, any> = {};
     filteredEvents.forEach(e => {
+      if (e.path.includes("/managepage/")) return; // Filter out admin pages
       const path = e.path || "/";
       if (!pages[path]) pages[path] = { path, views: 0, visitors: new Set() };
       pages[path].views++;
@@ -151,20 +185,6 @@ export function AdminAnalyticsPage() {
       .map(p => ({ ...p, unique: p.visitors.size }))
       .sort((a, b) => b.views - a.views)
       .slice(0, 5);
-  }, [filteredEvents]);
-
-  const seoScore = useMemo(() => {
-    // In a real app, this would fetch trek metadata. 
-    // Here we simulate a check on the currently tracked pages.
-    const uniquePages = new Set(filteredEvents.map(e => e.path));
-    const completed = Array.from(uniquePages).filter(p => p.length > 5); // Simple proxy
-    const ratio = completed.length / (uniquePages.size || 1);
-    
-    return {
-      grade: ratio > 0.8 ? "A" : ratio > 0.5 ? "B" : "C",
-      percent: Math.round(ratio * 100),
-      missing: Math.max(0, uniquePages.size - completed.length)
-    };
   }, [filteredEvents]);
 
   const exportPDF = async () => {
@@ -208,8 +228,8 @@ export function AdminAnalyticsPage() {
 
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2 px-4 py-2 bg-accent/5 border border-accent/10 rounded-2xl text-[10px] font-bold text-accent uppercase tracking-widest">
-            <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-            Last Sync: {lastSync.toLocaleTimeString()}
+            <div className={`w-2 h-2 rounded-full animate-pulse ${stats.active > 0 ? "bg-emerald-500" : "bg-accent"}`} />
+            {stats.active > 0 ? "Site Active" : "System Standby"} • {lastSync.toLocaleTimeString()}
           </div>
           
           <div className="flex bg-muted/50 p-1 rounded-2xl border border-border/50">
@@ -239,10 +259,13 @@ export function AdminAnalyticsPage() {
       <div ref={reportRef} className="space-y-8">
         {/* Elite Pulse Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel p-8 bg-accent/5 border-accent/20">
-            <div className="flex items-center gap-2 text-accent text-[10px] font-bold uppercase tracking-widest mb-4">
-              <div className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
-              Live Now
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`glass-panel p-8 border-2 transition-colors ${stats.active > 0 ? "bg-emerald-500/5 border-emerald-500/20" : "bg-accent/5 border-accent/20"}`}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-accent text-[10px] font-bold uppercase tracking-widest">
+                <div className={`w-1.5 h-1.5 rounded-full animate-ping ${stats.active > 0 ? "bg-emerald-500" : "bg-accent"}`} />
+                Live Status
+              </div>
+              {stats.active > 0 && <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold">ONLINE</span>}
             </div>
             <div className="text-5xl font-bold mb-2">{stats.active}</div>
             <div className="text-xs text-muted-foreground font-medium">Active sessions on site</div>
@@ -252,7 +275,7 @@ export function AdminAnalyticsPage() {
             { label: "Unique Visitors", value: stats.visitors, icon: Users, color: "text-emerald-500", bg: "bg-emerald-500/10" },
             { label: "Page Views", value: stats.views, icon: Eye, color: "text-blue-500", bg: "bg-blue-500/10" },
             { label: "Avg. Duration", value: `${stats.duration}s`, icon: Clock, color: "text-amber-500", bg: "bg-amber-500/10" },
-            { label: "Bounce Rate", value: `${stats.bounce}%`, icon: TrendingUp, color: "text-rose-500", bg: "bg-rose-500/10" },
+            { label: "Loyalty Rate", value: `${stats.loyalty}%`, icon: TrendingUp, color: "text-rose-500", bg: "bg-rose-500/10" },
           ].map((item, idx) => (
             <motion.div 
               key={item.label}
@@ -301,18 +324,8 @@ export function AdminAnalyticsPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis 
-                    dataKey="date" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 10, fill: "#888", fontWeight: 600 }} 
-                    dy={15}
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 10, fill: "#888", fontWeight: 600 }} 
-                  />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#888", fontWeight: 600 }} dy={15} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#888", fontWeight: 600 }} />
                   <Tooltip 
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
@@ -335,22 +348,8 @@ export function AdminAnalyticsPage() {
                       return null;
                     }}
                   />
-                  <Area 
-                    type="linear" 
-                    dataKey="views" 
-                    stroke="#f43f5e" 
-                    strokeWidth={4} 
-                    fill="url(#viewsGrad)" 
-                    activeDot={{ r: 8, strokeWidth: 0, fill: "#f43f5e" }}
-                  />
-                  <Area 
-                    type="linear" 
-                    dataKey="visitors" 
-                    stroke="#10b981" 
-                    strokeWidth={3} 
-                    fill="url(#visitorsGrad)" 
-                    activeDot={{ r: 6, strokeWidth: 0, fill: "#10b981" }}
-                  />
+                  <Area type="linear" dataKey="views" stroke="#f43f5e" strokeWidth={4} fill="url(#viewsGrad)" activeDot={{ r: 8, strokeWidth: 0, fill: "#f43f5e" }} />
+                  <Area type="linear" dataKey="visitors" stroke="#10b981" strokeWidth={3} fill="url(#visitorsGrad)" activeDot={{ r: 6, strokeWidth: 0, fill: "#10b981" }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -409,7 +408,7 @@ export function AdminAnalyticsPage() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel p-8">
             <h3 className="text-xl font-heading mb-8 flex items-center gap-3">
               <Eye className="w-5 h-5 text-accent" />
-              Content Performance
+              Content Preference
             </h3>
             <div className="space-y-4">
               {topPages.map((page, i) => (
@@ -418,7 +417,7 @@ export function AdminAnalyticsPage() {
                     <div className="w-8 h-8 rounded-xl bg-accent text-white flex items-center justify-center font-bold text-xs">{i + 1}</div>
                     <div>
                       <div className="text-sm font-bold truncate max-w-[150px]">{page.path}</div>
-                      <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{page.unique} visitors</div>
+                      <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{page.unique} readers</div>
                     </div>
                   </div>
                   <div className="text-xl font-bold">{page.views} <span className="text-[10px] text-muted-foreground uppercase">views</span></div>
@@ -436,21 +435,20 @@ export function AdminAnalyticsPage() {
               {charts.countries.map((c) => {
                 const density = Math.round((c.value / (stats.views || 1)) * 100);
                 return (
-                  <div key={c.name} className="space-y-2">
+          <div key={c.name} className="space-y-2">
                     <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest">
                       <span className="truncate max-w-[120px]">{c.name}</span>
-                      <span className="text-emerald-500">{c.value} visitors</span>
+                      <span className="text-emerald-400">{c.value} visitors</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">
-                      <span>Last seen: {c.lastVisit}</span>
-                      <span>{density}% share</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
+                        <span>{c.relativeTime}</span>
+                      </div>
+                      <span>{c.localTime} (Local)</span>
                     </div>
-                    <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${density}%` }}
-                        className="h-full bg-emerald-500"
-                      />
+                    <div className="h-1 bg-muted/30 rounded-full overflow-hidden">
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${density}%` }} className="h-full bg-emerald-500" />
                     </div>
                   </div>
                 );
@@ -463,14 +461,14 @@ export function AdminAnalyticsPage() {
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-xl font-heading flex items-center gap-3">
                 <Activity className="w-5 h-5 text-rose-500" />
-                Live Pulse
+                Public Pulse
               </h3>
-              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-muted/30 px-3 py-1 rounded-full">
-                {stats.active} Active
+              <div className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full ${stats.active > 0 ? "bg-emerald-500/20 text-emerald-500" : "bg-muted/30 text-muted-foreground"}`}>
+                {stats.active > 0 ? "Live Tracking" : "Standby"}
               </div>
             </div>
             <div className="space-y-4">
-              {events.slice(0, 6).map((e, i) => (
+              {events.filter(e => !e.path.includes("/managepage/")).slice(0, 6).map((e, i) => (
                 <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-muted/10 border border-border/30 hover:border-accent/30 transition-all group">
                   <div className="flex items-center gap-4">
                     <div className={`w-2.5 h-2.5 rounded-full ${e.eventType === "page_view" ? "bg-blue-500" : "bg-emerald-500"} animate-pulse`} />
@@ -481,13 +479,36 @@ export function AdminAnalyticsPage() {
                       </div>
                     </div>
                   </div>
-                  <Globe className="w-4 h-4 text-muted-foreground/20 group-hover:text-accent/50 transition-colors" />
+                  <MapPin className="w-4 h-4 text-muted-foreground/20 group-hover:text-accent/50 transition-colors" />
                 </div>
               ))}
-              {events.length === 0 && <div className="text-center py-10 text-muted-foreground italic">Waiting for pulse...</div>}
+              {events.filter(e => !e.path.includes("/managepage/")).length === 0 && <div className="text-center py-10 text-muted-foreground italic">Waiting for public traffic...</div>}
             </div>
           </motion.div>
         </div>
+
+        {/* System Intelligence Logs (Diagnostics) */}
+        {events.some(e => e.eventType === "debug_error") && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel p-8 bg-rose-500/5 border-rose-500/20 mt-8">
+            <h3 className="text-xl font-heading mb-6 flex items-center gap-3 text-rose-500">
+              <Activity className="w-5 h-5" />
+              System Intelligence Logs
+            </h3>
+            <div className="space-y-3">
+              {events.filter(e => e.eventType === "debug_error").slice(0, 3).map((e, i) => (
+                <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+                  <div className="flex items-center gap-4">
+                    <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                    <div className="text-sm font-mono text-rose-200">{e.locationLabel || "Unknown Tracking Error"}</div>
+                  </div>
+                  <div className="text-[10px] font-bold text-rose-500/50 uppercase tracking-widest">
+                    {new Date(e.createdAt).toLocaleTimeString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

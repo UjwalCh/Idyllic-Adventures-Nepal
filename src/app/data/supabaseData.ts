@@ -466,6 +466,7 @@ interface VisitorLocation {
   city: string | null;
   countryCode: string | null;
   locationLabel: string | null;
+  timezone?: string | null;
 }
 
 interface IpApiResponse {
@@ -474,6 +475,7 @@ interface IpApiResponse {
   region?: string;
   city?: string;
   country_code?: string;
+  timezone?: string;
 }
 
 const VISITOR_LOCATION_CACHE_KEY = "idyllic_visitor_location";
@@ -935,11 +937,14 @@ async function loadVisitorLocation(): Promise<VisitorLocation | null> {
       const region = normalizeLocationPart(data.region);
       const city = normalizeLocationPart(data.city);
       const countryCode = normalizeLocationPart(data.country_code)?.toUpperCase() ?? null;
+      const timezone = data.timezone ?? null;
+      
       const location: VisitorLocation = {
         country,
         region,
         city,
         countryCode,
+        timezone,
         locationLabel: buildLocationLabel(country, region, city),
       };
 
@@ -963,34 +968,28 @@ async function loadVisitorLocation(): Promise<VisitorLocation | null> {
 }
 
 export async function trackWebsiteEvent(
-  eventType: "page_view" | "cta_click" | "stay",
+  eventType: "page_view" | "cta_click" | "stay" | "debug_error",
   path: string,
-  duration?: number
+  duration?: number,
+  notes?: string
 ): Promise<void> {
-  if (!supabase) {
-    return;
-  }
+  if (!supabase) return;
 
   const trimmedPath = path.trim().slice(0, 300);
-  if (!trimmedPath) {
-    return;
-  }
-
   const referrer = typeof document !== "undefined" ? document.referrer || null : null;
-  const referrerSource = getReferrerSource(referrer);
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
   
-  // Non-blocking location lookup to ensure instant tracking
   const visitorLocationPromise = loadVisitorLocation();
 
   const { error } = await supabase.from("website_events").insert({
     event_type: eventType,
     path: trimmedPath,
     referrer,
-    referrer_source: referrerSource,
+    referrer_source: getReferrerSource(referrer),
     user_agent: userAgent,
     session_id: getSessionId(),
     duration: duration ?? null,
+    location_label: notes ?? null,
   });
 
   if (error) {
@@ -1008,7 +1007,7 @@ export async function trackWebsiteEvent(
           region: visitorLocation.region,
           city: visitorLocation.city,
           country_code: visitorLocation.countryCode,
-          location_label: visitorLocation.locationLabel,
+          location_label: visitorLocation.timezone || visitorLocation.locationLabel,
         })
         .match({ session_id: getSessionId(), event_type: eventType, path: trimmedPath })
         .order("created_at", { ascending: false })
