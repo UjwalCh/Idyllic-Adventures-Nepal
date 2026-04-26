@@ -54,10 +54,10 @@ export function HomePage() {
         <div className="container mx-auto px-4 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { icon: Mountain, label: "Years of Trek Leadership", value: settings.home_stats_years || "15+" },
-              { icon: Users, label: "Happy Trekkers", value: settings.home_stats_trekkers || "2,500+" },
-              { icon: Award, label: "Expert Guides", value: settings.home_stats_guides || "14+" },
-              { icon: Shield, label: "Safety First", value: "100%" },
+              { icon: Mountain, label: settings.home_stats_years_label || "Years of Trek Leadership", value: settings.home_stats_years || "15+" },
+              { icon: Users, label: settings.home_stats_trekkers_label || "Happy Trekkers", value: settings.home_stats_trekkers || "2,500+" },
+              { icon: Award, label: settings.home_stats_guides_label || "Expert Guides", value: settings.home_stats_guides || "14+" },
+              { icon: Shield, label: settings.home_stats_safety_label || "Safety First", value: settings.home_stats_safety || "100%" },
             ].map((stat, index) => (
               <motion.div
                 key={index}

@@ -87,13 +87,11 @@ export function Navigation() {
                     />
                   ) : (
                     <motion.div
-                      key="logo-fallback"
+                      key="logo-loading"
                       initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="p-3 bg-muted rounded-2xl text-muted-foreground shadow-sm"
-                    >
-                      <Mountain className="w-8 h-8" />
-                    </motion.div>
+                      animate={{ opacity: 0.1 }}
+                      className="w-10 h-10 bg-primary/20 rounded-full animate-pulse"
+                    />
                   )}
                 </AnimatePresence>
               </div>
@@ -136,14 +134,7 @@ export function Navigation() {
                   {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
               )}
-              {isAdmin && (
-                <Link
-                  to="/managepage"
-                  className="px-6 py-2 bg-primary/10 text-primary border border-primary/20 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-accent hover:text-white transition-all"
-                >
-                  Admin Panel
-                </Link>
-              )}
+
             </nav>
 
             <button
@@ -206,13 +197,7 @@ export function Navigation() {
                     )}
                   </button>
                 )}
-                <Link
-                  to="/managepage"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex-1 py-4 px-6 bg-accent text-accent-foreground rounded-2xl font-bold transition-all text-center shadow-lg shadow-accent/20"
-                >
-                  Admin Panel
-                </Link>
+
               </div>
             </nav>
           </motion.div>

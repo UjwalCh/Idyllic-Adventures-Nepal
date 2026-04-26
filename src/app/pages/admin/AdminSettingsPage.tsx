@@ -106,9 +106,14 @@ const SITE_SETTING_CATEGORIES = [
       {
         title: "Performance Stats",
         fields: [
-          { key: "home_stats_years", label: "Years of Experience" },
-          { key: "home_stats_trekkers", label: "Happy Trekkers Count" },
-          { key: "home_stats_guides", label: "Expert Guides Count" },
+          { key: "home_stats_years_label", label: "Years Label" },
+          { key: "home_stats_years", label: "Years Value" },
+          { key: "home_stats_trekkers_label", label: "Trekkers Label" },
+          { key: "home_stats_trekkers", label: "Trekkers Value" },
+          { key: "home_stats_guides_label", label: "Guides Label" },
+          { key: "home_stats_guides", label: "Guides Value" },
+          { key: "home_stats_safety_label", label: "Performance Label (e.g. Safety First)" },
+          { key: "home_stats_safety", label: "Performance Value (e.g. 100%)" },
         ]
       },
       {
