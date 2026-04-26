@@ -64,7 +64,12 @@ export function AdminAnalyticsPage() {
       "30d": 30 * 24 * 60 * 60 * 1000,
     }[timeRange];
     
-    return events.filter(e => (masterNow - new Date(e.createdAt).getTime()) <= rangeMs);
+    return events.filter(e => {
+      const age = masterNow - new Date(e.createdAt).getTime();
+      const isInRange = age <= rangeMs;
+      const isNotAdmin = !e.path.startsWith("/managepage");
+      return isInRange && isNotAdmin;
+    });
   }, [events, timeRange]);
 
   const stats = useMemo(() => {
@@ -72,38 +77,54 @@ export function AdminAnalyticsPage() {
 
     const sessions = new Map();
     filteredEvents.forEach(e => {
-      const s = sessions.get(e.sessionId) || { views: 0, start: new Date(e.createdAt).getTime(), end: new Date(e.createdAt).getTime() };
-      s.views++;
+      const s = sessions.get(e.sessionId) || { 
+        views: 0, 
+        heartbeats: 0, 
+        recordedDuration: 0,
+        start: new Date(e.createdAt).getTime(), 
+        end: new Date(e.createdAt).getTime() 
+      };
+      
+      if (e.eventType === "page_view") s.views++;
+      if (e.eventType === "stay") {
+        s.heartbeats++;
+        s.recordedDuration += (e.duration || 10);
+      }
+      
       s.end = Math.max(s.end, new Date(e.createdAt).getTime());
       sessions.set(e.sessionId, s);
     });
 
+    // Calculate total duration using heartbeats + baseline
     const totalDuration = Array.from(sessions.values()).reduce((acc, s: any) => {
-      const duration = s.end - s.start;
-      return acc + (duration > 0 ? duration : 10000); // 10s minimum for single-hit views
-    }, 0) / 1000;
+      // Use recorded duration if we have heartbeats, otherwise use time diff (capped at 5 mins)
+      const calculated = s.recordedDuration > 0 
+        ? s.recordedDuration 
+        : Math.min((s.end - s.start) / 1000, 300);
+      
+      return acc + (calculated > 0 ? calculated : 10); // 10s baseline
+    }, 0);
 
-    const bounces = Array.from(sessions.values()).filter((s: any) => s.views === 1).length;
-    const returning = Array.from(sessions.values()).filter((s: any) => s.views > 1).length;
+    const returning = Array.from(sessions.values()).filter((s: any) => s.views > 1 || s.heartbeats > 5).length;
     
-    // Real-time Active (2-min window)
+    // Real-time Active (2-min window from the absolute latest event)
     const masterNow = events.length > 0 ? new Date(events[0].createdAt).getTime() : Date.now();
     const activeWindow = 2 * 60 * 1000;
     const active = new Set(
       events
         .filter(e => {
           const age = masterNow - new Date(e.createdAt).getTime();
-          return age >= 0 && age < activeWindow;
+          const isRecent = age >= 0 && age < activeWindow;
+          const isNotAdmin = !e.path.startsWith("/managepage");
+          return isRecent && isNotAdmin;
         })
         .map(e => e.sessionId)
     ).size;
 
-    console.log(`📊 Analytics Calc: ${events.length} events, ${active} active.`);
-
     return {
-      views: filteredEvents.length,
+      views: filteredEvents.filter(e => e.eventType === "page_view").length,
       visitors: sessions.size,
-      bounce: Math.round((bounces / (sessions.size || 1)) * 100),
+      bounce: Math.round((Array.from(sessions.values()).filter((s: any) => s.views <= 1 && s.heartbeats < 2).length / (sessions.size || 1)) * 100),
       loyalty: Math.round((returning / (sessions.size || 1)) * 100),
       duration: Math.round(totalDuration / (sessions.size || 1)),
       active
@@ -194,7 +215,6 @@ export function AdminAnalyticsPage() {
   const topPages = useMemo(() => {
     const pages: Record<string, any> = {};
     filteredEvents.forEach(e => {
-      if (e.path.includes("/managepage/")) return; // Filter out admin pages
       const path = e.path || "/";
       if (!pages[path]) pages[path] = { path, views: 0, visitors: new Set() };
       pages[path].views++;
@@ -317,7 +337,6 @@ export function AdminAnalyticsPage() {
             { label: "Loyalty Rate", value: `${stats.loyalty}%`, icon: TrendingUp, color: "text-rose-500", bg: "bg-rose-500/10" },
           ].map((item, idx) => (
             <motion.div 
-              key={item.label}
               initial={{ opacity: 0, y: 20 }} 
               animate={{ 
                 opacity: 1, 
@@ -516,7 +535,7 @@ export function AdminAnalyticsPage() {
               </div>
             </div>
             <div className="space-y-4">
-              {events.filter(e => !e.path.includes("/managepage/")).slice(0, 6).map((e, i) => (
+              {filteredEvents.slice(0, 6).map((e, i) => (
                 <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-muted/10 border border-border/30 hover:border-accent/30 transition-all group">
                   <div className="flex items-center gap-4">
                     <div className={`w-2.5 h-2.5 rounded-full ${e.eventType === "page_view" ? "bg-blue-500" : "bg-emerald-500"} animate-pulse`} />
@@ -530,7 +549,7 @@ export function AdminAnalyticsPage() {
                   <MapPin className="w-4 h-4 text-muted-foreground/20 group-hover:text-accent/50 transition-colors" />
                 </div>
               ))}
-              {events.filter(e => !e.path.includes("/managepage/")).length === 0 && <div className="text-center py-10 text-muted-foreground italic">Waiting for public traffic...</div>}
+              {filteredEvents.length === 0 && <div className="text-center py-10 text-muted-foreground italic">Waiting for public traffic...</div>}
             </div>
           </motion.div>
         </div>

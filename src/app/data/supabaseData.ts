@@ -428,7 +428,7 @@ interface NoticeRecord {
 
 export interface WebsiteEvent {
   id: string;
-  eventType: "page_view" | "cta_click" | "stay";
+  eventType: "page_view" | "cta_click" | "stay" | "debug_error";
   path: string;
   referrer: string | null;
   referrerSource: "Search" | "Social" | "Direct" | "Referral";
@@ -445,7 +445,7 @@ export interface WebsiteEvent {
 
 interface WebsiteEventRecord {
   id: string;
-  event_type: "page_view" | "cta_click" | "stay";
+  event_type: "page_view" | "cta_click" | "stay" | "debug_error";
   path: string;
   referrer: string | null;
   referrer_source: string;

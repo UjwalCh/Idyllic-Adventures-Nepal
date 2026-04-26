@@ -7,7 +7,7 @@ export function WebsiteAnalyticsTracker() {
 
   useEffect(() => {
     const path = `${location.pathname}${location.search}`;
-    if (path.includes("/managepage/")) return;
+    if (path.startsWith("/managepage")) return;
 
     // Direct Tracking Fire
     void trackWebsiteEvent("page_view", path);

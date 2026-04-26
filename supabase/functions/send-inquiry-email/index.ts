@@ -1,3 +1,5 @@
+/// <reference lib="deno.ns" />
+/// <reference lib="deno.unstable" />
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 type InquiryPayload = {
@@ -29,7 +31,7 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
