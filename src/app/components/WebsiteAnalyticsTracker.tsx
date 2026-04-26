@@ -9,17 +9,10 @@ export function WebsiteAnalyticsTracker() {
     const path = `${location.pathname}${location.search}`;
     if (path.includes("/managepage/")) return;
 
-    const track = async () => {
-      try {
-        await trackWebsiteEvent("page_view", path);
-      } catch (e: any) {
-        // Emergency Signal: Log the error so we can see it on the admin panel
-        void trackWebsiteEvent("debug_error", path, 0, e.message || "Unknown error");
-      }
-    };
+    // Direct Tracking Fire
+    void trackWebsiteEvent("page_view", path);
 
-    void track();
-
+    // Lean Heartbeat (30s)
     const pulse = setInterval(() => {
       void trackWebsiteEvent("stay", path, 30);
     }, 30000);

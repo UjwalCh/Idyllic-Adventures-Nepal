@@ -968,52 +968,38 @@ async function loadVisitorLocation(): Promise<VisitorLocation | null> {
 }
 
 export async function trackWebsiteEvent(
-  eventType: "page_view" | "cta_click" | "stay" | "debug_error",
+  eventType: "page_view" | "cta_click" | "stay",
   path: string,
-  duration?: number,
-  notes?: string
+  duration?: number
 ): Promise<void> {
-  if (!supabase) return;
+  if (!supabase || typeof window === "undefined") return;
 
-  const trimmedPath = path.trim().slice(0, 300);
-  const referrer = typeof document !== "undefined" ? document.referrer || null : null;
-  const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
-  
-  const visitorLocationPromise = loadVisitorLocation();
+  try {
+    const trimmedPath = path.trim().slice(0, 300);
+    const referrer = document.referrer || null;
+    const userAgent = navigator.userAgent;
+    
+    // Quick location lookup (Parallel/Background)
+    const loc = await loadVisitorLocation();
 
-  const { error } = await supabase.from("website_events").insert({
-    event_type: eventType,
-    path: trimmedPath,
-    referrer,
-    referrer_source: getReferrerSource(referrer),
-    user_agent: userAgent,
-    session_id: getSessionId(),
-    duration: duration ?? null,
-    location_label: notes ?? null,
-  });
-
-  if (error) {
-    throw error;
+    await supabase.from("website_events").insert({
+      event_type: eventType,
+      path: trimmedPath,
+      referrer,
+      referrer_source: getReferrerSource(referrer),
+      user_agent: userAgent,
+      session_id: getSessionId(),
+      duration: duration ?? null,
+      country: loc?.country || "Global",
+      region: loc?.region || "UTC",
+      city: loc?.city || "Unknown",
+      country_code: loc?.countryCode || null,
+      location_label: loc?.timezone || loc?.locationLabel || null,
+    });
+  } catch (e) {
+    // Silent fail to keep site heavy-load free
+    console.error("Analytics standby.");
   }
-
-  // Update the event with location data in the background (best effort)
-  visitorLocationPromise.then(async (visitorLocation) => {
-    if (visitorLocation && supabase) {
-      // Try to find the event we just created and update it
-      // This is a background task, so we don't await it
-      await supabase.from("website_events")
-        .update({
-          country: visitorLocation.country,
-          region: visitorLocation.region,
-          city: visitorLocation.city,
-          country_code: visitorLocation.countryCode,
-          location_label: visitorLocation.timezone || visitorLocation.locationLabel,
-        })
-        .match({ session_id: getSessionId(), event_type: eventType, path: trimmedPath })
-        .order("created_at", { ascending: false })
-        .limit(1);
-    }
-  });
 }
 
 function getReferrerSource(referrer: string | null): "Search" | "Social" | "Direct" | "Referral" {
