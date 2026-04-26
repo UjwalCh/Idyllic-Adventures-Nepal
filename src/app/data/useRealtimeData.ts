@@ -93,9 +93,11 @@ export function useWebsiteAnalytics(hours = 24) {
       const data = await fetchWebsiteEvents(hours);
       setEvents(data);
       setError(null);
+      return { events: data };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to fetch website analytics";
       setError(message);
+      throw err;
     } finally {
       setLoading(false);
     }

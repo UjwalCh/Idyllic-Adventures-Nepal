@@ -41,12 +41,13 @@ export function AdminAnalyticsPage() {
   const [timeRange, setTimeRange] = useState<"24h" | "7d" | "30d">("7d");
   const { events, loading, error, refresh } = useWebsiteAnalytics(timeRange === "24h" ? 24 : timeRange === "7d" ? 24 * 7 : 24 * 30);
   const reportRef = useRef<HTMLDivElement>(null);
+  const [lastSync, setLastSync] = useState<Date>(new Date());
 
-  // Auto-refresh data every 30 seconds as a fallback for real-time subscriptions
+  // High-frequency polling (Turbo Refresh) to ensure live data even if Realtime is off
   useEffect(() => {
     const pollInterval = setInterval(() => {
-      void refresh();
-    }, 30000);
+      void refresh().then(() => setLastSync(new Date()));
+    }, 10000); // 10s interval for responsive live testing
     return () => clearInterval(pollInterval);
   }, [refresh]);
 
@@ -345,7 +346,30 @@ const hourlyTraffic = useMemo(() => {
             <span className="text-foreground font-medium">Analytics</span>
           </div>
           <h1 className="font-heading text-4xl text-primary">Website Analytics</h1>
-          <p className="text-muted-foreground">Deep insights into visitor behavior and traffic sources.</p>
+          <p className="text-muted-foreground flex items-center gap-2">
+            Deep insights into visitor behavior.
+            <button 
+              onClick={async () => {
+                const toastId = toast.loading("Checking Data Pipeline...");
+                try {
+                  const result = await refresh();
+                  const now = Date.now();
+                  const isHealthy = result && result.events && result.events.length > 0;
+                  if (isHealthy) {
+                    toast.success("Pipeline Healthy! Data is flowing.", { id: toastId });
+                  } else {
+                    toast.warning("Pipeline Empty. Check RLS Policies in Supabase.", { id: toastId });
+                  }
+                } catch (e) {
+                  const errMsg = e instanceof Error ? e.message : String(e);
+                  toast.error(`Blocked: ${errMsg}`, { id: toastId, duration: 5000 });
+                }
+              }}
+              className="text-[10px] uppercase tracking-widest font-bold text-accent hover:underline ml-2"
+            >
+              [ Troubleshoot System Health ]
+            </button>
+          </p>
         </div>
 
         {/* Error Alert */}
@@ -362,6 +386,10 @@ const hourlyTraffic = useMemo(() => {
         )}
         
         <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/5 border border-accent/10 rounded-full text-[10px] font-bold text-accent uppercase tracking-widest">
+            <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+            Last Sync: {lastSync.toLocaleTimeString()}
+          </div>
           <div className="flex bg-muted p-1 rounded-xl">
             {(["24h", "7d", "30d"] as const).map((range) => (
               <button
