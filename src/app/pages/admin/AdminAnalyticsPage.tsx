@@ -13,7 +13,8 @@ import {
   Monitor,
   TrendingUp,
   MessageSquare,
-  LogOut
+  LogOut,
+  Activity
 } from "lucide-react";
 import { Link } from "react-router";
 import { useWebsiteAnalytics } from "../../data/useRealtimeData";
@@ -63,21 +64,24 @@ export function AdminAnalyticsPage() {
     return events.filter(e => (now - new Date(e.createdAt).getTime()) <= rangeMs);
   }, [events, timeRange]);
 
-  // Enhanced Real-time Tracking
-  const liveStats = useMemo(() => {
-    const now = Date.now();
-    const oneMinAgo = now - 60 * 1000;
-    const fiveMinAgo = now - 5 * 60 * 1000;
+  // Stable Real-time Tracking (5-Minute Window)
+  const activeVisitors = useMemo(() => {
+    if (events.length === 0) return 0;
+    const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+    
+    // We allow a 5-minute future buffer just in case of server/client clock drift
+    const futureBuffer = Date.now() + 5 * 60 * 1000;
 
-    const liveNow = new Set(
-      events.filter(e => new Date(e.createdAt).getTime() >= oneMinAgo).map(e => e.sessionId)
-    ).size;
+    const activeSessions = new Set(
+      events
+        .filter(e => {
+          const ts = new Date(e.createdAt).getTime();
+          return ts >= fiveMinAgo && ts <= futureBuffer;
+        })
+        .map(e => e.sessionId)
+    );
 
-    const activeRecent = new Set(
-      events.filter(e => new Date(e.createdAt).getTime() >= fiveMinAgo).map(e => e.sessionId)
-    ).size;
-
-    return { liveNow, activeRecent };
+    return activeSessions.size;
   }, [events]);
 
   // Feature 2: Top Exit Pages
@@ -354,11 +358,13 @@ const hourlyTraffic = useMemo(() => {
                 try {
                   const result = await refresh();
                   const now = Date.now();
-                  const isHealthy = result && result.events && result.events.length > 0;
-                  if (isHealthy) {
-                    toast.success("Pipeline Healthy! Data is flowing.", { id: toastId });
+                  const recent = result?.events?.filter(e => (now - new Date(e.createdAt).getTime()) < 5 * 60 * 1000) || [];
+                  const activeSids = Array.from(new Set(recent.map(e => e.sessionId)));
+                  
+                  if (activeSids.length > 0) {
+                    toast.success(`Pipeline Active! Found ${activeSids.length} unique devices in the last 5 min. (IDs: ${activeSids.slice(0, 2).join(", ")}...)`, { id: toastId });
                   } else {
-                    toast.warning("Pipeline Empty. Check RLS Policies in Supabase.", { id: toastId });
+                    toast.warning("No active devices found in the last 5 min. Check your phone's browser settings.", { id: toastId });
                   }
                 } catch (e) {
                   const errMsg = e instanceof Error ? e.message : String(e);
@@ -422,19 +428,10 @@ const hourlyTraffic = useMemo(() => {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
               </span>
-              Live Activity
+              Real-time Active
             </div>
-            <div className="flex items-end gap-4 mb-2">
-              <div className="text-5xl font-bold">{liveStats.liveNow}</div>
-              <div className="text-sm font-bold text-emerald-500 mb-1 flex items-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live Now
-              </div>
-            </div>
-            <div className="text-sm text-muted-foreground flex items-center gap-2">
-              <span className="font-bold text-primary">{liveStats.activeRecent}</span>
-              <span>active in last 5 min</span>
-            </div>
+            <div className="text-5xl font-bold mb-2">{activeVisitors}</div>
+            <div className="text-sm text-muted-foreground">Active sessions in last 5 min</div>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-panel p-8">
@@ -735,6 +732,55 @@ const hourlyTraffic = useMemo(() => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Live Activity Stream (Feature Proof) */}
+        <div className="glass-panel p-8 mt-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+                <Activity className="w-5 h-5 text-accent" />
+              </div>
+              <div>
+                <h3 className="font-heading text-xl">Live Activity Stream</h3>
+                <p className="text-xs text-muted-foreground">Real-time pulse • Last data received: {lastSync.toLocaleTimeString()}</p>
+              </div>
+            </div>
+            <div className="px-4 py-2 rounded-xl bg-muted/30 border border-border/50 text-[10px] font-bold uppercase tracking-widest text-muted-foreground animate-pulse">
+              Sync Active
+            </div>
+          </div>
+          <div className="space-y-3">
+            {events.slice(0, 5).map((event, idx) => (
+              <motion.div 
+                key={event.id || idx}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className="flex items-center justify-between p-4 rounded-2xl bg-muted/10 border border-border/30 hover:bg-muted/20 transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-2 h-2 rounded-full ${event.eventType === "page_view" ? "bg-blue-500" : "bg-emerald-500"}`} />
+                  <div>
+                    <div className="text-sm font-bold truncate max-w-[200px] md:max-w-md group-hover:text-accent transition-colors">
+                      {event.path || "/"}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+                      {event.eventType === "page_view" ? "Page View" : "Active Engagement"} • {event.country || "Global Visitor"}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs font-mono text-muted-foreground">
+                  {new Date(event.createdAt).toLocaleTimeString()}
+                </div>
+              </motion.div>
+            ))}
+            {events.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground italic">
+                Waiting for the first visitor signal...
+              </div>
+            )}
           </div>
         </div>
       </div>

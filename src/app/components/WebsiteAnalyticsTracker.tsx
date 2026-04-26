@@ -8,29 +8,20 @@ export function WebsiteAnalyticsTracker() {
   useEffect(() => {
     const path = `${location.pathname}${location.search}`;
     
-    // EXCLUDE ADMIN PATHS from analytics to keep data clean for customers
-    if (path.startsWith("/managepage")) {
-      return;
-    }
+    // EXCLUDE ADMIN PATHS BUT ALLOW HOME PAGE
+    if (path.startsWith("/managepage/dashboard") || path.startsWith("/managepage/analytics")) return;
 
-    // Track every page view for real visitors
+    // Track page view immediately
+    console.log("📡 Tracking Signal: Page View ->", path);
     void trackWebsiteEvent("page_view", path);
 
-    // Initial heartbeats for high-accuracy live tracking
-    const timeouts = [
-      setTimeout(() => void trackWebsiteEvent("stay", path, 10), 10000),
-      setTimeout(() => void trackWebsiteEvent("stay", path, 30), 30000),
-    ];
-
-    // Sustained heartbeat every 60 seconds
+    // Reliable 30s heartbeat
     const interval = setInterval(() => {
-      void trackWebsiteEvent("stay", path, 60);
-    }, 60000);
+      console.log("💓 Tracking Signal: Pulse ->", path);
+      void trackWebsiteEvent("stay", path, 30);
+    }, 30000);
 
-    return () => {
-      timeouts.forEach(clearTimeout);
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, [location.pathname, location.search]);
 
   return null;
