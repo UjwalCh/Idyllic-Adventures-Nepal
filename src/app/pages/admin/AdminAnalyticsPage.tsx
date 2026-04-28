@@ -545,8 +545,8 @@ export function AdminAnalyticsPage() {
                 const density = Math.round((c.value / (stats.views || 1)) * 100);
                 return (
                   <div key={c.name} className="space-y-2">
-                    <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest">
-                      <span className="truncate max-w-[140px]">{c.name}</span>
+                    <div className="flex justify-between items-start gap-2 text-xs font-bold uppercase tracking-widest">
+                      <span>{c.name}</span>
                       <span className="text-emerald-400">{c.value} visitors</span>
                     </div>
                     <div className="flex flex-wrap justify-between items-center gap-1 text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">
