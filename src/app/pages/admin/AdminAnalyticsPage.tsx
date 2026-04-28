@@ -253,7 +253,7 @@ export function AdminAnalyticsPage() {
   }
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-6 md:space-y-8" ref={reportRef}>
       {/* Premium Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>

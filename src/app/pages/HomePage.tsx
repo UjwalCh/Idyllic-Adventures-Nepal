@@ -19,10 +19,10 @@ export function HomePage() {
         badge={settings.home_hero_badge || "Explore the Himalayas"}
         title={
           <>
-            <span className="font-heading text-5xl md:text-7xl lg:text-9xl leading-tight block">
+            <span className="font-heading text-4xl md:text-7xl lg:text-9xl leading-tight block">
               {settings.home_hero_title_line1 || "Discover Your"}
             </span>
-            <span className="text-secondary italic font-heading text-6xl md:text-8xl lg:text-[10rem]">
+            <span className="text-secondary italic font-heading text-5xl md:text-8xl lg:text-[10rem]">
               {settings.home_hero_title_line2 || "Idyllic Adventure"}
             </span>
           </>
@@ -50,7 +50,7 @@ export function HomePage() {
         </div>
       </ParallaxHero>
 
-      <section className="py-24 bg-background relative z-10 -mt-20">
+      <section className="py-16 md:py-24 bg-background relative z-10 -mt-10 md:-mt-20">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
@@ -80,16 +80,16 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="py-32 bg-muted/20 relative">
+      <section className="py-16 md:py-32 bg-muted/20 relative">
         <div className="container mx-auto px-4 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-20"
+            className="text-center mb-12 md:mb-20"
           >
-            <h2 className="font-heading text-5xl md:text-6xl mb-6">{settings.home_featured_title || "Featured Treks"}</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            <h2 className="font-heading text-4xl md:text-6xl mb-4 md:mb-6">{settings.home_featured_title || "Featured Treks"}</h2>
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
               {settings.home_featured_subtitle || "Handpicked adventures for the ultimate Himalayan experience"}
             </p>
           </motion.div>
@@ -161,7 +161,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="py-40 relative overflow-hidden bg-[#020617] text-white">
+      <section className="py-24 md:py-40 relative overflow-hidden bg-[#020617] text-white">
         <div className="absolute inset-0 z-0 overflow-hidden">
            <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-accent/20 rounded-full blur-[120px] animate-pulse" />
            <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-secondary/10 rounded-full blur-[140px] animate-pulse [animation-delay:2s]" />
@@ -174,10 +174,10 @@ export function HomePage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <h2 className="font-heading text-6xl md:text-7xl mb-10 leading-tight">
+              <h2 className="font-heading text-4xl md:text-7xl mb-6 md:mb-10 leading-tight">
                 {settings.home_cta_title || "Your Himalayan Story Starts Here"}
               </h2>
-              <p className="text-xl md:text-2xl mb-12 opacity-80 font-light leading-relaxed">
+              <p className="text-lg md:text-2xl mb-8 md:mb-12 opacity-80 font-light leading-relaxed">
                 {settings.home_cta_description || "Contact me today to start planning your bespoke journey. I will guide you through every pass and valley of the majestic Himalayas."}
               </p>
               <Link

@@ -92,13 +92,13 @@ export function Navigation() {
         className="glass-navbar border-b border-white/5"
       >
         <div className="container mx-auto px-4 lg:px-8">
-          <div className="flex items-center justify-between h-28">
+          <div className="flex items-center justify-between h-20 md:h-28">
             <Link 
               to="/" 
               onDoubleClick={() => navigate("/managepage")}
               className="flex items-center gap-3 group"
             >
-              <div className="flex items-center justify-center overflow-hidden w-20 h-20 transition-transform duration-500 group-hover:scale-105">
+              <div className="flex items-center justify-center overflow-hidden w-14 h-14 md:w-20 md:h-20 transition-transform duration-500 group-hover:scale-105">
                 <AnimatePresence mode="wait">
                   {settings.site_logo ? (
                     <motion.img
@@ -120,10 +120,10 @@ export function Navigation() {
                 </AnimatePresence>
               </div>
               <div>
-                <div className="font-heading text-xl tracking-tight text-primary font-bold leading-tight">
+                <div className="font-heading text-lg md:text-xl tracking-tight text-primary font-bold leading-tight">
                   Idyllic Adventures
                 </div>
-                <div className="text-[10px] text-muted-foreground font-bold tracking-[0.3em] uppercase opacity-80">NEPAL</div>
+                <div className="text-[9px] md:text-[10px] text-muted-foreground font-bold tracking-[0.3em] uppercase opacity-80">NEPAL</div>
               </div>
             </Link>
 
@@ -182,7 +182,7 @@ export function Navigation() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="md:hidden fixed top-24 left-0 right-0 z-40 glass-panel mx-4 max-h-[80vh] overflow-y-auto shadow-2xl"
+            className="md:hidden fixed top-20 left-0 right-0 z-40 glass-panel mx-4 max-h-[80vh] overflow-y-auto shadow-2xl"
           >
             <nav className="px-4 py-8 flex flex-col gap-3">
               {navLinks.map((link) => (

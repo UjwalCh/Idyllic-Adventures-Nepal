@@ -11,7 +11,9 @@ import {
   Moon,
   Sun,
   Monitor,
-  TrendingUp
+  TrendingUp,
+  Menu,
+  X
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getCurrentSession, signOutAdmin, subscribeToAuthChanges } from "../../data/auth";
@@ -36,6 +38,7 @@ function AdminLayoutContent() {
   const { settings } = useBranding();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
@@ -99,8 +102,34 @@ function AdminLayoutContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-sidebar flex">
-      <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col">
+    <div className="min-h-screen bg-sidebar flex flex-col md:flex-row">
+      {/* Mobile Top Bar */}
+      <div className="md:hidden flex items-center justify-between p-4 bg-sidebar border-b border-sidebar-border text-sidebar-foreground sticky top-0 z-30 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 flex items-center justify-center overflow-hidden">
+             {settings.site_logo ? (
+               <img src={settings.site_logo} alt="Logo" className="w-full h-full object-contain" />
+             ) : (
+               <Mountain className="w-6 h-6 text-accent" />
+             )}
+          </div>
+          <h1 className="text-lg font-heading font-bold tracking-tight">Admin Panel</h1>
+        </div>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 -mr-2 text-sidebar-foreground">
+          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+      </div>
+
+      {/* Mobile Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"}`}>
         <div className="p-6">
           <div className="flex items-center gap-4 mb-8">
             <div 
@@ -158,6 +187,7 @@ function AdminLayoutContent() {
               <Link
                 key={item.path}
                 to={item.path}
+                onClick={() => setIsMobileMenuOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all font-bold text-sm tracking-wide ${
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-lg shadow-black/10 scale-[1.02]"
