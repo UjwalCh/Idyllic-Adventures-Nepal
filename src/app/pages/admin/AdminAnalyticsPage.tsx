@@ -107,14 +107,19 @@ export function AdminAnalyticsPage() {
 
     const returning = Array.from(sessions.values()).filter((s: any) => s.views > 1 || s.heartbeats > 5).length;
     
-    // Real-time Active (2-min window from the absolute latest event)
+    // Real-time Active: 4-min window using both DB time AND client Date.now()
+    // The wider window (4min) prevents devices with slightly out-of-sync clocks from being missed
     const masterNow = events.length > 0 ? new Date(events[0].createdAt).getTime() : Date.now();
-    const activeWindow = 2 * 60 * 1000;
+    const clientNow = Date.now();
+    const activeWindow = 4 * 60 * 1000;
     const active = new Set(
       events
         .filter(e => {
-          const age = masterNow - new Date(e.createdAt).getTime();
-          const isRecent = age >= 0 && age < activeWindow;
+          const ts = new Date(e.createdAt).getTime();
+          const ageFromDb = masterNow - ts;
+          const ageFromClient = clientNow - ts;
+          // Accept if recent relative to EITHER the DB anchor OR the local clock
+          const isRecent = (ageFromDb >= 0 && ageFromDb < activeWindow) || (ageFromClient >= 0 && ageFromClient < activeWindow);
           const isNotAdmin = !e.path.startsWith("/managepage");
           return isRecent && isNotAdmin;
         })
@@ -147,24 +152,46 @@ export function AdminAnalyticsPage() {
       visitors: h.visitors.size
     })).reverse();
 
-    // Devices & Geography
+    // Devices, Sources & Geography
     const devices: Record<string, number> = {};
     const sources: Record<string, number> = {};
-    const countries: Record<string, any> = {};
+    // Key = "City, Country" for specificity
+    const regions: Record<string, any> = {};
 
     filteredEvents.forEach(e => {
-      const dev = e.userAgent?.includes("Mobile") ? "Mobile" : "Desktop";
+      // --- TV / Smart TV Detection ---
+      const ua = e.userAgent?.toLowerCase() || "";
+      let dev = "Desktop";
+      if (
+        ua.includes("smarttv") || ua.includes("smart-tv") ||
+        ua.includes("webos") || ua.includes("tizen") ||
+        ua.includes("netcast") || ua.includes("viera") ||
+        ua.includes("hbbtv") || ua.includes("appletv") ||
+        ua.includes("googletv") || ua.includes("androidtv") ||
+        ua.includes("crkey") || // Chromecast
+        (ua.includes("tv") && (ua.includes("samsung") || ua.includes("lg") || ua.includes("sony") || ua.includes("philips")))
+      ) {
+        dev = "Smart TV";
+      } else if (ua.includes("tablet") || ua.includes("ipad")) {
+        dev = "Tablet";
+      } else if (ua.includes("mobile") || ua.includes("android") && !ua.includes("tablet")) {
+        dev = "Mobile";
+      }
       devices[dev] = (devices[dev] || 0) + 1;
       
       const src = e.referrerSource || "Direct";
       sources[src] = (sources[src] || 0) + 1;
 
-      const cName = e.country || "Global";
-      if (!countries[cName]) countries[cName] = { name: cName, count: 0, lastVisit: e.createdAt, timezone: e.locationLabel || "UTC" };
-      countries[cName].count++;
-      if (new Date(e.createdAt) > new Date(countries[cName].lastVisit)) {
-        countries[cName].lastVisit = e.createdAt;
-        countries[cName].timezone = e.locationLabel || "UTC";
+      // Use City + Country for specific regional data
+      const city = (e as any).city;
+      const country = e.country || "Unknown";
+      const regionKey = city && city !== "Unknown" ? `${city}, ${country}` : country;
+      const tz = e.locationLabel || "UTC";
+      if (!regions[regionKey]) regions[regionKey] = { name: regionKey, country, count: 0, lastVisit: e.createdAt, timezone: tz };
+      regions[regionKey].count++;
+      if (new Date(e.createdAt) > new Date(regions[regionKey].lastVisit)) {
+        regions[regionKey].lastVisit = e.createdAt;
+        regions[regionKey].timezone = tz;
       }
     });
 
@@ -178,21 +205,34 @@ export function AdminAnalyticsPage() {
       return `${Math.floor(hours / 24)}d ago`;
     };
 
+    // Format time in a given timezone (with Nepal special case)
     const formatInTimezone = (dateStr: string, timezone: string, country?: string) => {
       try {
-        // SPECIAL CASE FOR NEPAL (UTC +5:45)
         if (country === "Nepal" || timezone === "Asia/Kathmandu") {
           const date = new Date(dateStr);
           const npt = new Date(date.getTime() + (5.75 * 60 * 60 * 1000));
-          return npt.getUTCHours() + ":" + npt.getUTCMinutes().toString().padStart(2, "0") + (npt.getUTCHours() >= 12 ? " PM" : " AM");
+          const h = npt.getUTCHours();
+          const m = npt.getUTCMinutes().toString().padStart(2, "0");
+          return `${h % 12 || 12}:${m} ${h >= 12 ? "PM" : "AM"}`;
         }
-
         return new Intl.DateTimeFormat("en-US", {
           timeStyle: "short",
           timeZone: timezone.includes("/") ? timezone : "UTC"
         }).format(new Date(dateStr));
-      } catch (e) {
+      } catch {
         return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    };
+
+    // Always format AUS time as Sydney (AEST/AEDT)
+    const formatAusTime = (dateStr: string) => {
+      try {
+        return new Intl.DateTimeFormat("en-AU", {
+          timeStyle: "short",
+          timeZone: "Australia/Sydney"
+        }).format(new Date(dateStr));
+      } catch {
+        return "—";
       }
     };
 
@@ -200,15 +240,17 @@ export function AdminAnalyticsPage() {
       traffic,
       devices: Object.entries(devices).map(([name, value]) => ({ name, value })),
       sources: Object.entries(sources).map(([name, value]) => ({ name, value })),
-      countries: Object.values(countries)
+      countries: Object.values(regions)
         .map((c: any) => ({
           name: c.name,
+          country: c.country,
           value: c.count,
           relativeTime: getRelativeTime(c.lastVisit),
-          localTime: formatInTimezone(c.lastVisit, c.timezone, c.name)
+          localTime: formatInTimezone(c.lastVisit, c.timezone, c.country),
+          ausTime: formatAusTime(c.lastVisit),
         }))
         .sort((a, b) => b.value - a.value)
-        .slice(0, 6)
+        .slice(0, 8)
     };
   }, [filteredEvents]);
 
@@ -502,17 +544,21 @@ export function AdminAnalyticsPage() {
               {charts.countries.map((c) => {
                 const density = Math.round((c.value / (stats.views || 1)) * 100);
                 return (
-          <div key={c.name} className="space-y-2">
+                  <div key={c.name} className="space-y-2">
                     <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest">
-                      <span className="truncate max-w-[120px]">{c.name}</span>
+                      <span className="truncate max-w-[140px]">{c.name}</span>
                       <span className="text-emerald-400">{c.value} visitors</span>
                     </div>
-                    <div className="flex justify-between items-center text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">
+                    <div className="flex flex-wrap justify-between items-center gap-1 text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">
                       <div className="flex items-center gap-1.5">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
                         <span>{c.relativeTime}</span>
                       </div>
-                      <span>{c.localTime} (Local)</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-blue-400">{c.localTime} (Local)</span>
+                        <span className="opacity-40">|</span>
+                        <span className="text-amber-400">{c.ausTime} (AUS)</span>
+                      </div>
                     </div>
                     <div className="h-1 bg-muted/30 rounded-full overflow-hidden">
                       <motion.div initial={{ width: 0 }} animate={{ width: `${density}%` }} className="h-full bg-emerald-500" />
@@ -535,21 +581,33 @@ export function AdminAnalyticsPage() {
               </div>
             </div>
             <div className="space-y-4">
-              {filteredEvents.slice(0, 6).map((e, i) => (
+              {filteredEvents
+                // Only show real navigation events — no background heartbeat spam
+                .filter(e => e.eventType === "page_view" || e.eventType === "cta_click")
+                // Deduplicate: skip if same session visited same page as the previous entry
+                .filter((e, idx, arr) => {
+                  if (idx === 0) return true;
+                  const prev = arr[idx - 1];
+                  return !(prev.sessionId === e.sessionId && prev.path === e.path);
+                })
+                .slice(0, 8)
+                .map((e, i) => (
                 <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-muted/10 border border-border/30 hover:border-accent/30 transition-all group">
                   <div className="flex items-center gap-4">
-                    <div className={`w-2.5 h-2.5 rounded-full ${e.eventType === "page_view" ? "bg-blue-500" : "bg-emerald-500"} animate-pulse`} />
+                    <div className={`w-2.5 h-2.5 rounded-full ${e.eventType === "page_view" ? "bg-blue-500" : "bg-amber-400"} animate-pulse`} />
                     <div>
-                      <div className="text-sm font-bold truncate max-w-[120px] group-hover:text-accent transition-colors">{e.path}</div>
+                      <div className="text-sm font-bold truncate max-w-[140px] group-hover:text-accent transition-colors">{e.path}</div>
                       <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
-                        {e.country || "Global"} • {new Date(e.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {(e as any).city && (e as any).city !== "Unknown" ? `${(e as any).city}, ` : ""}{e.country || "Global"} • {new Date(e.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
                   </div>
-                  <MapPin className="w-4 h-4 text-muted-foreground/20 group-hover:text-accent/50 transition-colors" />
+                  <div className="text-[9px] uppercase font-bold tracking-widest text-muted-foreground/40 group-hover:text-accent/50 transition-colors">
+                    {e.eventType === "cta_click" ? "CTA" : "View"}
+                  </div>
                 </div>
               ))}
-              {filteredEvents.length === 0 && <div className="text-center py-10 text-muted-foreground italic">Waiting for public traffic...</div>}
+              {filteredEvents.filter(e => e.eventType === "page_view" || e.eventType === "cta_click").length === 0 && <div className="text-center py-10 text-muted-foreground italic">Waiting for public traffic...</div>}
             </div>
           </motion.div>
         </div>

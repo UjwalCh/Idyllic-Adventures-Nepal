@@ -24,8 +24,21 @@ export function AdminDashboardPage() {
     const stats = pageViews.reduce((acc, event) => {
       const ua = event.userAgent?.toLowerCase() || "";
       let device = "Desktop";
-      if (ua.includes("mobi")) device = "Mobile";
-      else if (ua.includes("tablet") || ua.includes("ipad")) device = "Tablet";
+      if (
+        ua.includes("smarttv") || ua.includes("smart-tv") ||
+        ua.includes("webos") || ua.includes("tizen") ||
+        ua.includes("netcast") || ua.includes("viera") ||
+        ua.includes("hbbtv") || ua.includes("appletv") ||
+        ua.includes("googletv") || ua.includes("androidtv") ||
+        ua.includes("crkey") ||
+        (ua.includes("tv") && (ua.includes("samsung") || ua.includes("lg") || ua.includes("sony") || ua.includes("philips")))
+      ) {
+        device = "Smart TV";
+      } else if (ua.includes("tablet") || ua.includes("ipad")) {
+        device = "Tablet";
+      } else if (ua.includes("mobi") || (ua.includes("android") && !ua.includes("tablet"))) {
+        device = "Mobile";
+      }
       acc[device] = (acc[device] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
