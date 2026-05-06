@@ -10,8 +10,11 @@ import {
   Edit2,
   Trash2,
   Star,
+  GripVertical,
 } from "lucide-react";
-import { Trek } from "../../data/mockData";
+import { DndProvider, useDrag, useDrop } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
+import { Trek } from "../../data/supabaseData";
 import { toast } from "sonner";
 import { useTreks } from "../../data/useRealtimeData";
 import { requireAuthenticatedSession } from "../../data/auth";
@@ -21,6 +24,7 @@ import {
   isSupabaseConfigured,
   toggleFeaturedTrek,
   updateTrek,
+  updateTrekSortOrder,
   uploadTrekImage,
 } from "../../data/supabaseData";
 import {
@@ -31,6 +35,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
+import { MediaPickerModal } from "../../components/ui/MediaPickerModal";
+import { TREK_IMAGES_BUCKET } from "../../data/supabaseData";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 
 type TrekFormState = {
@@ -47,6 +53,7 @@ type TrekFormState = {
   highlightsText: string;
   itineraryText: string;
   gallery: string[];
+  videoUrl: string;
 };
 
 const defaultFormState: TrekFormState = {
@@ -63,6 +70,7 @@ const defaultFormState: TrekFormState = {
   highlightsText: "",
   itineraryText: "",
   gallery: [],
+  videoUrl: "",
 };
 
 const fieldClassName =
@@ -76,6 +84,7 @@ export function AdminTreksPage() {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDropActive, setIsDropActive] = useState(false);
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [formState, setFormState] = useState<TrekFormState>(defaultFormState);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -229,6 +238,7 @@ export function AdminTreksPage() {
       highlightsText: trek.highlights.join("\n"),
       itineraryText: trek.itinerary.map((day) => `${day.title} | ${day.description}`).join("\n"),
       gallery: trek.gallery || [],
+      videoUrl: trek.videoUrl || "",
     });
     setIsFormOpen(true);
   };
@@ -257,6 +267,9 @@ export function AdminTreksPage() {
       highlights: parseHighlights(formState.highlightsText),
       itinerary: parseItinerary(formState.itineraryText),
       gallery: formState.gallery,
+      videoUrl: formState.videoUrl || null,
+      sortOrder: 0,
+      createdAt: new Date().toISOString(),
     };
 
     if (!payload.title || !payload.description || !payload.duration || !payload.maxAltitude || !payload.bestSeason || !payload.groupSize || !payload.price || !payload.image) {
@@ -312,6 +325,23 @@ export function AdminTreksPage() {
       toast.success("Trek updated successfully");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update trek");
+    }
+  };
+
+  const handleMoveTrek = async (dragIndex: number, hoverIndex: number) => {
+    const dragTrek = treks[dragIndex];
+    const newTreks = [...treks];
+    newTreks.splice(dragIndex, 1);
+    newTreks.splice(hoverIndex, 0, dragTrek);
+
+    // Optimistically update UI would be nice, but useTreks is a hook.
+    // We'll just update the sort orders in DB and refresh.
+    try {
+      const updates = newTreks.map((trek, index) => updateTrekSortOrder(trek.id, index));
+      await Promise.all(updates);
+      // No need to toast every move, it's annoying.
+    } catch (err) {
+      toast.error("Failed to update sort order");
     }
   };
 
@@ -392,6 +422,9 @@ export function AdminTreksPage() {
               <thead className="bg-muted/50 border-b border-border">
                 <tr>
                   <th className="px-6 py-4 text-left w-10">
+                    <GripVertical className="w-4 h-4 text-muted-foreground/30" />
+                  </th>
+                  <th className="px-6 py-4 text-left w-10">
                     <input
                       type="checkbox"
                       className="rounded border-border"
@@ -411,90 +444,21 @@ export function AdminTreksPage() {
                 </tr>
               </thead>
               <tbody>
-                {treks.map((trek) => (
-                  <tr key={trek.id} className={`border-b border-border last:border-0 transition-colors ${selectedIds.includes(trek.id) ? "bg-accent/5" : ""}`}>
-                    <td className="px-6 py-4">
-                      <input
-                        type="checkbox"
-                        className="rounded border-border"
-                        checked={selectedIds.includes(trek.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) setSelectedIds((prev) => [...prev, trek.id]);
-                          else setSelectedIds((prev) => prev.filter((id) => id !== trek.id));
-                        }}
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-                          <img
-                            src={trek.image}
-                            alt={trek.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div>
-                          <div className="text-sm mb-1">{trek.title}</div>
-                          <div className="text-xs text-muted-foreground line-clamp-1">
-                            {trek.description}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm">{trek.duration}</td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${
-                          trek.difficulty === "Easy"
-                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                            : trek.difficulty === "Moderate"
-                            ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                            : trek.difficulty === "Challenging"
-                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                            : "bg-red-500/10 text-red-600 dark:text-red-400"
-                        }`}
-                      >
-                        {trek.difficulty}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm">{trek.price}</td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => void handleToggleFeatured(trek.id, trek.featured)}
-                        className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
-                          trek.featured
-                            ? "bg-accent/20 text-accent"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                        }`}
-                      >
-                        <Star
-                          className={`w-3 h-3 ${
-                            trek.featured ? "fill-accent" : ""
-                          }`}
-                        />
-                        <span>{trek.featured ? "Featured" : "Regular"}</span>
-                      </button>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => void openEditDialog(trek)}
-                          className="p-2 hover:bg-muted rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-4 h-4 text-accent" />
-                        </button>
-                        <button
-                          onClick={() => void handleDelete(trek.id)}
-                          className="p-2 hover:bg-muted rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                <DndProvider backend={HTML5Backend}>
+                  {treks.map((trek, index) => (
+                    <DraggableRow
+                      key={trek.id}
+                      index={index}
+                      trek={trek}
+                      selectedIds={selectedIds}
+                      setSelectedIds={setSelectedIds}
+                      handleToggleFeatured={handleToggleFeatured}
+                      openEditDialog={openEditDialog}
+                      handleDelete={handleDelete}
+                      moveRow={handleMoveTrek}
+                    />
+                  ))}
+                </DndProvider>
               </tbody>
             </table>
           </div>
@@ -515,7 +479,7 @@ export function AdminTreksPage() {
         )}
 
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogContent className="w-[96vw] max-w-[96vw] h-[96vh] overflow-hidden p-4 sm:p-6">
+          <DialogContent className="w-[96vw] sm:max-w-[96vw] max-w-[96vw] h-[96vh] overflow-hidden p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>{editingTrekId ? "Edit Trek" : "Add New Trek"}</DialogTitle>
               <DialogDescription>
@@ -635,12 +599,11 @@ export function AdminTreksPage() {
                         <label className="block text-sm">Image URL *</label>
                         <button
                           type="button"
-                          onClick={() => imageInputRef.current?.click()}
-                          disabled={isUploadingImage}
-                          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm hover:bg-muted transition-colors disabled:opacity-60"
+                          onClick={() => setIsMediaPickerOpen(true)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm hover:bg-muted transition-colors"
                         >
                           <ImageUp className="h-4 w-4" />
-                          {isUploadingImage ? "Uploading..." : "Upload from Device"}
+                          Select or Upload Media
                         </button>
                       </div>
                       <input
@@ -679,6 +642,16 @@ export function AdminTreksPage() {
                       <p className="mt-2 text-xs text-muted-foreground">
                         Use the button to upload an image from your device, or paste a public URL.
                       </p>
+
+                      <div className="mt-4">
+                        <label className="block text-sm mb-2">Video Trailer URL (YouTube/Vimeo)</label>
+                        <input
+                          value={formState.videoUrl}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, videoUrl: e.target.value }))}
+                          className={fieldClassName}
+                          placeholder="https://www.youtube.com/watch?v=..."
+                        />
+                      </div>
                       {isUploadingImage && (
                         <div className="mt-3">
                           <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
@@ -863,7 +836,160 @@ export function AdminTreksPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <MediaPickerModal 
+          open={isMediaPickerOpen} 
+          onOpenChange={setIsMediaPickerOpen} 
+          onSelect={(url) => setFormState(prev => ({ ...prev, image: url }))} 
+          defaultBucket={TREK_IMAGES_BUCKET}
+        />
       </motion.div>
     </div>
+  );
+}
+
+// Draggable Row Component
+interface DraggableRowProps {
+  index: number;
+  trek: Trek;
+  selectedIds: string[];
+  setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
+  handleToggleFeatured: (id: string, featured: boolean) => Promise<void>;
+  openEditDialog: (trek: Trek) => Promise<void>;
+  handleDelete: (id: string) => Promise<void>;
+  moveRow: (dragIndex: number, hoverIndex: number) => void;
+}
+
+function DraggableRow({
+  index,
+  trek,
+  selectedIds,
+  setSelectedIds,
+  handleToggleFeatured,
+  openEditDialog,
+  handleDelete,
+  moveRow,
+}: DraggableRowProps) {
+  const ref = useRef<HTMLTableRowElement>(null);
+
+  const [{ handlerId }, drop] = useDrop({
+    accept: "TREK",
+    collect(monitor) {
+      return {
+        handlerId: monitor.getHandlerId(),
+      };
+    },
+    hover(item: any, monitor) {
+      if (!ref.current) return;
+      const dragIndex = item.index;
+      const hoverIndex = index;
+      if (dragIndex === hoverIndex) return;
+
+      const hoverBoundingRect = ref.current?.getBoundingClientRect();
+      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const clientOffset = monitor.getClientOffset();
+      const hoverClientY = (clientOffset as any).y - hoverBoundingRect.top;
+
+      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
+      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
+
+      moveRow(dragIndex, hoverIndex);
+      item.index = hoverIndex;
+    },
+  });
+
+  const [{ isDragging }, drag] = useDrag({
+    type: "TREK",
+    item: () => {
+      return { id: trek.id, index };
+    },
+    collect: (monitor: any) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  drag(drop(ref));
+
+  return (
+    <tr
+      ref={ref}
+      style={{ opacity: isDragging ? 0 : 1 }}
+      data-handler-id={handlerId}
+      className={`border-b border-border last:border-0 transition-colors cursor-move hover:bg-muted/30 ${
+        selectedIds.includes(trek.id) ? "bg-accent/5" : ""
+      }`}
+    >
+      <td className="px-6 py-4">
+        <GripVertical className="w-4 h-4 text-muted-foreground/30" />
+      </td>
+      <td className="px-6 py-4">
+        <input
+          type="checkbox"
+          className="rounded border-border"
+          checked={selectedIds.includes(trek.id)}
+          onChange={(e) => {
+            if (e.target.checked) setSelectedIds((prev) => [...prev, trek.id]);
+            else setSelectedIds((prev) => prev.filter((id) => id !== trek.id));
+          }}
+        />
+      </td>
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
+            <img src={trek.image} alt={trek.title} className="w-full h-full object-cover" />
+          </div>
+          <div>
+            <div className="text-sm font-bold mb-1">{trek.title}</div>
+            <div className="text-xs text-muted-foreground line-clamp-1">{trek.description}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-6 py-4 text-sm">{trek.duration}</td>
+      <td className="px-6 py-4">
+        <span
+          className={`px-2 py-1 rounded text-xs font-medium ${
+            trek.difficulty === "Easy"
+              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              : trek.difficulty === "Moderate"
+              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+              : trek.difficulty === "Challenging"
+              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              : "bg-red-500/10 text-red-600 dark:text-red-400"
+          }`}
+        >
+          {trek.difficulty}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-sm">{trek.price}</td>
+      <td className="px-6 py-4">
+        <button
+          onClick={() => void handleToggleFeatured(trek.id, trek.featured)}
+          className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+            trek.featured ? "bg-accent/20 text-accent" : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          <Star className={`w-3 h-3 ${trek.featured ? "fill-accent" : ""}`} />
+          <span>{trek.featured ? "Featured" : "Regular"}</span>
+        </button>
+      </td>
+      <td className="px-6 py-4">
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={() => void openEditDialog(trek)}
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
+            title="Edit"
+          >
+            <Edit2 className="w-4 h-4 text-accent" />
+          </button>
+          <button
+            onClick={() => void handleDelete(trek.id)}
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
+            title="Delete"
+          >
+            <Trash2 className="w-4 h-4 text-destructive" />
+          </button>
+        </div>
+      </td>
+    </tr>
   );
 }

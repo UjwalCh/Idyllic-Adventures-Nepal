@@ -13,7 +13,8 @@ import {
   Monitor,
   TrendingUp,
   Menu,
-  X
+  X,
+  ShieldAlert
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getCurrentSession, signOutAdmin, subscribeToAuthChanges } from "../../data/auth";
@@ -95,9 +96,11 @@ function AdminLayoutContent() {
     { path: "/managepage/dashboard/treks", icon: Mountain, label: "Treks" },
     { path: "/managepage/dashboard/journal", icon: BookOpen, label: "Journal" },
     { path: "/managepage/dashboard/gallery", icon: Image, label: "Gallery" },
+    { path: "/managepage/dashboard/images", icon: Monitor, label: "Media" },
     { path: "/managepage/dashboard/notices", icon: Bell, label: "Notices" },
     { path: "/managepage/dashboard/inquiries", icon: MessageSquareText, label: "Inquiries" },
     { path: "/managepage/dashboard/analytics", icon: TrendingUp, label: "Analytics" },
+    { path: "/managepage/dashboard/maintenance", icon: ShieldAlert, label: "Maintenance" },
     { path: "/managepage/dashboard/settings", icon: Settings, label: "Settings" },
   ];
 

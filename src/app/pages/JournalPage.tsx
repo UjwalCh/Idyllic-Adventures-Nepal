@@ -1,13 +1,15 @@
 import { motion } from "motion/react";
 import { Link } from "react-router";
 import { Calendar, User, Tag, ArrowRight } from "lucide-react";
-import { useJournal } from "../data/useRealtimeData";
+import { useJournal, useSiteSettings } from "../data/useRealtimeData";
 import ImageWithFallback from "../components/figma/ImageWithFallback";
 
 import ParallaxHero from "../components/ui/ParallaxHero";
 
 export function JournalPage() {
   const { entries, loading } = useJournal();
+  const { settings } = useSiteSettings();
+  const isPaused = settings?.news_paused === "true";
 
   return (
     <div className="min-h-screen bg-background">
@@ -19,13 +21,23 @@ export function JournalPage() {
           </span>
         }
         subtitle="Stories from the high passes, local insights, and updates from our trekking adventures in the heart of Nepal."
-        image="https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&q=80&w=2000"
+        image={settings.journal_hero_image || "https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&q=80&w=2000"}
       />
 
       <section className="pb-32 container mx-auto px-4 lg:px-8">
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-accent" />
+          </div>
+        ) : isPaused ? (
+          <div className="text-center py-32 bg-amber-500/5 rounded-[3rem] border-2 border-dashed border-amber-200">
+            <div className="inline-flex p-6 rounded-full bg-amber-500/10 text-amber-500 mb-6">
+              <Calendar className="w-12 h-12" />
+            </div>
+            <h3 className="text-3xl font-heading mb-4 text-primary">Journal Temporarily Paused</h3>
+            <p className="text-muted-foreground max-w-md mx-auto text-lg">
+              We're currently updating our trail logs and stories. Check back soon for fresh Himalayan updates!
+            </p>
           </div>
         ) : entries.length === 0 ? (
           <div className="text-center py-20 bg-muted/20 rounded-[3rem] border-2 border-dashed border-border">

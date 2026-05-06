@@ -100,11 +100,10 @@ export function JournalEntryPage() {
             transition={{ delay: 0.2 }}
             className="lg:col-span-8 bg-card rounded-[3rem] p-8 md:p-16 shadow-2xl border border-border/50 h-fit"
           >
-            <div className="prose prose-xl prose-stone dark:prose-invert max-w-none prose-headings:font-heading prose-a:text-accent">
-              {entry.content.split('\n').map((paragraph, i) => (
-                paragraph.trim() ? <p key={i} className="mb-6 leading-relaxed text-muted-foreground">{paragraph}</p> : <br key={i} />
-              ))}
-            </div>
+            <div 
+              className="prose prose-xl prose-stone dark:prose-invert max-w-none prose-headings:font-heading prose-a:text-accent prose-img:rounded-[2rem] prose-img:shadow-2xl"
+              dangerouslySetInnerHTML={{ __html: entry.content }}
+            />
 
             <div className="mt-16 pt-8 border-t border-border/30 flex flex-col sm:flex-row items-center justify-between gap-6">
               <div className="flex gap-4">

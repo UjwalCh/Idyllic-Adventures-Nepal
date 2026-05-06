@@ -6,6 +6,7 @@ import { useSiteSettings } from "../data/useRealtimeData";
 import { useTheme } from "next-themes";
 import { getCurrentSession, subscribeToAuthChanges } from "../data/auth";
 import { useNavigate } from "react-router";
+import Magnetic from "./ui/Magnetic";
 
 export function Navigation() {
   const location = useLocation();
@@ -22,7 +23,7 @@ export function Navigation() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // 1. Ignore if typing in an input
-      const activeEl = document.activeElement;
+      const activeEl = document.activeElement as HTMLElement;
       const isTyping = activeEl && (
         activeEl.tagName === "INPUT" || 
         activeEl.tagName === "TEXTAREA" || 
@@ -89,74 +90,79 @@ export function Navigation() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="glass-navbar border-b border-white/5"
+        className="glass-navbar border-b border-white/5 transform-gpu"
       >
         <div className="container mx-auto px-4 lg:px-8">
-          <div className="flex items-center justify-between h-20 md:h-28">
-            <Link 
-              to="/" 
-              onDoubleClick={() => navigate("/managepage")}
-              className="flex items-center gap-3 group"
-            >
-              <div className="flex items-center justify-center overflow-hidden w-14 h-14 md:w-20 md:h-20 transition-transform duration-500 group-hover:scale-105">
-                <AnimatePresence mode="wait">
-                  {settings.site_logo ? (
-                    <motion.img
-                      key="logo-img"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      src={settings.site_logo}
-                      alt="Logo"
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <motion.div
-                      key="logo-loading"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 0.1 }}
-                      className="w-10 h-10 bg-primary/20 rounded-full animate-pulse"
-                    />
-                  )}
-                </AnimatePresence>
-              </div>
-              <div>
-                <div className="font-heading text-lg md:text-xl tracking-tight text-primary font-bold leading-tight">
-                  Idyllic Adventures
+          <div className="flex items-center justify-between h-16 md:h-20">
+            <Magnetic strength={0.2}>
+              <Link 
+                to="/" 
+                onDoubleClick={() => navigate("/managepage")}
+                className="flex items-center gap-3 group"
+              >
+                <div className="flex items-center justify-center overflow-hidden w-12 h-12 md:w-20 md:h-20 transition-transform duration-500 group-hover:scale-105">
+                  <AnimatePresence mode="wait">
+                    {settings.site_logo ? (
+                      <motion.img
+                        key="logo-img"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        src={settings.site_logo}
+                        alt="Logo"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <motion.div
+                        key="logo-loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 0.1 }}
+                        className="w-10 h-10 bg-primary/20 rounded-full animate-pulse"
+                      />
+                    )}
+                  </AnimatePresence>
                 </div>
-                <div className="text-[9px] md:text-[10px] text-muted-foreground font-bold tracking-[0.3em] uppercase opacity-80">NEPAL</div>
-              </div>
-            </Link>
+                <div>
+                  <div className="font-heading text-lg md:text-2xl tracking-tighter text-primary font-black leading-none">
+                    Idyllic Adventures
+                  </div>
+                  <div className="text-[8px] md:text-[10px] text-muted-foreground font-black tracking-[0.3em] uppercase opacity-60">NEPAL</div>
+                </div>
+              </Link>
+            </Magnetic>
 
-            <nav className="hidden md:flex items-center gap-8">
+            <nav className="hidden md:flex items-center gap-6 md:gap-8">
               {navLinks.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`relative py-2 text-sm font-bold tracking-widest uppercase transition-all duration-300 group ${
-                    location.pathname === link.path
-                      ? "text-accent"
-                      : "text-foreground hover:text-accent"
-                  }`}
-                >
-                  <span className="relative z-10">{link.label}</span>
-                  {location.pathname === link.path && (
-                    <motion.div
-                      layoutId="nav-indicator"
-                      className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-secondary to-accent rounded-full"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                  <span className="absolute inset-0 bg-gradient-to-r from-secondary/10 to-accent/10 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-lg -mx-3" />
-                </Link>
+                <Magnetic key={link.path} strength={0.3}>
+                  <Link
+                    to={link.path}
+                    className={`relative py-2 px-2 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase transition-all duration-300 group ${
+                      location.pathname === link.path
+                        ? "text-accent"
+                        : "text-foreground hover:text-accent"
+                    }`}
+                  >
+                    <span className="relative z-10">{link.label}</span>
+                    {location.pathname === link.path && (
+                      <motion.div
+                        layoutId="nav-indicator"
+                        className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-secondary to-accent rounded-full"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <span className="absolute inset-0 bg-gradient-to-r from-secondary/10 to-accent/10 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-lg" />
+                  </Link>
+                </Magnetic>
               ))}
               {mounted && (
-                <button
-                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                  className="p-2 hover:bg-muted rounded-full transition-all"
-                  aria-label="Toggle theme"
-                >
-                  {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
+                <Magnetic strength={0.4}>
+                  <button
+                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    className="p-3 hover:bg-muted rounded-full transition-all"
+                    aria-label="Toggle theme"
+                  >
+                    {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  </button>
+                </Magnetic>
               )}
 
             </nav>

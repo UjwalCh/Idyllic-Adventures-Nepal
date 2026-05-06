@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
+import { RichTextEditor } from "../../components/ui/RichTextEditor";
 
 type JournalFormState = {
   title: string;
@@ -24,6 +25,9 @@ type JournalFormState = {
   authorRole: string;
   authorBio: string;
   authorImage: string;
+  seoTitle: string;
+  seoDescription: string;
+  published: boolean;
 };
 
 const defaultFormState: JournalFormState = {
@@ -38,6 +42,8 @@ const defaultFormState: JournalFormState = {
   authorRole: "Lead Trek Guide",
   authorBio: "Sharing my love for the mountains and the unique culture of Nepal through stories and photographs.",
   authorImage: "",
+  seoTitle: "",
+  seoDescription: "",
 };
 
 const fieldClassName = "w-full px-4 py-3 bg-input-background rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-accent";
@@ -102,6 +108,8 @@ export function AdminJournalPage() {
       authorRole: entry.authorRole || "Lead Trek Guide",
       authorBio: entry.authorBio || "",
       authorImage: entry.authorImage || "",
+      seoTitle: entry.seoTitle || "",
+      seoDescription: entry.seoDescription || "",
     });
     setIsFormOpen(true);
   };
@@ -212,7 +220,7 @@ export function AdminJournalPage() {
         </div>
 
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto p-6 sm:p-8">
             <DialogHeader>
               <DialogTitle>{editingId ? "Edit Story" : "New Story"}</DialogTitle>
               <DialogDescription>Write and publish your Himalayan adventure.</DialogDescription>
@@ -312,14 +320,11 @@ export function AdminJournalPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm mb-2">Content</label>
-                <textarea
+              <div className="md:col-span-2">
+                <label className="block text-sm mb-2 font-medium">Story Content</label>
+                <RichTextEditor 
                   value={formState.content}
-                  onChange={(e) => setFormState(prev => ({ ...prev, content: e.target.value }))}
-                  rows={10}
-                  className={fieldClassName}
-                  placeholder="Tell your story..."
+                  onChange={(val) => setFormState(prev => ({ ...prev, content: val }))}
                 />
               </div>
 
@@ -394,6 +399,59 @@ export function AdminJournalPage() {
                         className={fieldClassName}
                         placeholder="Short bio for the author card..."
                       />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
+
+
+              {/* SEO Preview Section */}
+              <div className="border-t border-border pt-6 mt-2">
+                <h4 className="font-heading text-lg mb-4 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-accent" />
+                  SEO & Search Preview
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm mb-2 font-medium">SEO Title (Optional)</label>
+                      <input
+                        value={formState.seoTitle}
+                        onChange={(e) => setFormState(prev => ({ ...prev, seoTitle: e.target.value }))}
+                        className={fieldClassName}
+                        placeholder="Default: Story Title"
+                        maxLength={60}
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">Recommended: 50-60 characters</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-2 font-medium">SEO Description (Optional)</label>
+                      <textarea
+                        value={formState.seoDescription}
+                        onChange={(e) => setFormState(prev => ({ ...prev, seoDescription: e.target.value }))}
+                        rows={3}
+                        className={fieldClassName}
+                        placeholder="Brief summary for search engines..."
+                        maxLength={160}
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">Recommended: 120-160 characters</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#f8f9fa] dark:bg-[#1a1a1a] p-6 rounded-2xl border border-border shadow-inner">
+                    <p className="text-xs text-muted-foreground mb-4 uppercase tracking-widest font-bold">Google Preview</p>
+                    <div className="max-w-[600px] font-sans">
+                      <div className="text-[#1a0dab] dark:text-[#8ab4f8] text-xl hover:underline cursor-pointer truncate mb-1">
+                        {formState.seoTitle || formState.title || "Story Title Preview"}
+                      </div>
+                      <div className="text-[#006621] dark:text-[#34a853] text-sm mb-1 truncate">
+                        https://idyllicnepal.com/journal/{formState.slug || "your-story-slug"}
+                      </div>
+                      <div className="text-[#4d5156] dark:text-[#bdc1c6] text-sm line-clamp-2">
+                        {formState.seoDescription || formState.excerpt || formState.content.slice(0, 160) || "Start writing to see a preview of your story's description in search results."}
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -5,78 +5,79 @@
   --font-heading: 'Playfair Display', serif;
   --font-body: 'Outfit', sans-serif;
 
-    /* VIBRANT DAY MODE (Modern Digital) */
-    --background: #ffffff;
-    --foreground: #0f172a; /* Slate 900 */
-    --card: #ffffff;
-    --card-foreground: #0f172a;
-    --popover: #ffffff;
-    --popover-foreground: #0f172a;
-    --primary: #0f172a; 
+    /* MATTE LIGHT MODE (Himalayan Paper) */
+    --background: #efefed; /* Soft Matte Paper */
+    --foreground: #1e1b4b; /* Deep Indigo-Black */
+    --card: #f8f8f6; /* Bone White */
+    --card-foreground: #1e1b4b;
+    --popover: #f8f8f6;
+    --popover-foreground: #1e1b4b;
+    --primary: #4f46e5; /* Deeper Indigo */
     --primary-foreground: #ffffff;
-    --secondary: #0ea5e9; /* Sky 500 */
+    --secondary: #0ea5e9; /* Sky Blue */
     --secondary-foreground: #ffffff;
-    --muted: #f8fafc;
+    --muted: #e5e5e2;
     --muted-foreground: #64748b;
-    --accent: #f43f5e; /* Rose 500 - High Energy */
+    --accent: #d97706; /* Himalayan Gold */
     --accent-foreground: #ffffff;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
-    --border: rgba(15, 23, 42, 0.08);
+    --border: rgba(79, 70, 229, 0.1);
     --input: transparent;
-    --input-background: #ffffff;
-    --switch-background: #e2e8f0;
-  --font-weight-medium: 600;
-  --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.5rem;
-    --sidebar: #f8fafc;
-    --sidebar-foreground: #0f172a;
-    --sidebar-primary: #0f172a;
-    --sidebar-accent: #f1f5f9;
-    --sidebar-accent-foreground: #0f172a;
-    --sidebar-border: rgba(15, 23, 42, 0.08);
-  --sidebar-ring: oklch(0.708 0 0);
-  --glass-background: rgba(255, 255, 255, 0.1);
-  --glass-border: rgba(255, 255, 255, 0.2);
-  --glass-blur: 12px;
+    --input-background: #f8f8f6;
+    --switch-background: #d1d5db;
+    --font-weight-medium: 600;
+    --font-weight-normal: 400;
+    --ring: #4f46e5;
+    --chart-1: #4f46e5;
+    --chart-2: #10b981;
+    --chart-3: #f59e0b;
+    --chart-4: #f43f5e;
+    --chart-5: #8b5cf6;
+    --radius: 1.25rem;
+    --sidebar: #f8f8f6;
+    --sidebar-foreground: #1e1b4b;
+    --sidebar-primary: #4f46e5;
+    --sidebar-accent: #efefed;
+    --sidebar-accent-foreground: #1e1b4b;
+    --sidebar-border: rgba(79, 70, 229, 0.1);
+    --sidebar-ring: #4f46e5;
+    --glass-background: rgba(248, 248, 246, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.6);
+    --glass-blur: 12px;
 }
 
 .dark {
-  --background: #000000;
-  --foreground: #ffffff;
-  --card: #0a0a0a;
-  --card-foreground: #ffffff;
-  --popover: #0a0a0a;
-  --popover-foreground: #ffffff;
-  --primary: #ffffff;
-  --primary-foreground: #000000;
-  --secondary: #10b981; 
-  --secondary-foreground: #ffffff;
-  --muted: #111111;
-  --muted-foreground: #a1a1aa;
-  --accent: #f43f5e; 
-  --accent-foreground: #ffffff;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: transparent;
-  --input-background: #1e252e;
-  --ring: #3b82f6;
-  --sidebar: #000000;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #f43f5e;
-  --sidebar-accent: #111111;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --glass-background: rgba(0, 0, 0, 0.3);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-blur: 16px;
+    /* MATTE DARK MODE (Deep Valley) */
+    --background: #050816; /* Deep Midnight Navy */
+    --foreground: #e0e7ff; /* Ice White */
+    --card: #0c1222; /* Indigo Slate */
+    --card-foreground: #e0e7ff;
+    --popover: #0c1222;
+    --popover-foreground: #e0e7ff;
+    --primary: #818cf8; /* Soft Electric Indigo */
+    --primary-foreground: #050816;
+    --secondary: #38bdf8; /* Bright Sky */
+    --secondary-foreground: #ffffff;
+    --muted: #111827;
+    --muted-foreground: #94a3b8;
+    --accent: #fbbf24; /* Sunset Gold */
+    --accent-foreground: #050816;
+    --destructive: #f87171;
+    --destructive-foreground: #ffffff;
+    --border: rgba(129, 140, 248, 0.2);
+    --input: transparent;
+    --input-background: #0c1222;
+    --ring: #818cf8;
+    --sidebar: #050816;
+    --sidebar-foreground: #e0e7ff;
+    --sidebar-primary: #818cf8;
+    --sidebar-accent: #0c1222;
+    --sidebar-accent-foreground: #e0e7ff;
+    --sidebar-border: rgba(129, 140, 248, 0.2);
+    --glass-background: rgba(12, 18, 34, 0.7);
+    --glass-border: rgba(129, 140, 248, 0.1);
+    --glass-blur: 16px;
 }
 
 @theme inline {
@@ -128,8 +129,32 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground transition-colors duration-500;
     font-family: var(--font-body);
+    background-color: transparent;
+    background-image: 
+      radial-gradient(
+        circle at 0% 0%,
+        rgba(79, 70, 229, 0.08),
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 100% 50%,
+        rgba(245, 158, 11, 0.08),
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 50% 100%,
+        rgba(14, 165, 233, 0.05),
+        transparent 50%
+      );
+    background-attachment: fixed;
+  }
+
+  /* Base Body Overlay (The actual matte color) */
+  body::before {
+    content: "";
+    @apply fixed inset-0 bg-background -z-20 pointer-events-none transition-colors duration-500;
   }
 
   /**
@@ -189,14 +214,23 @@
   }
 
   .glass-card {
-    @apply bg-glass-background backdrop-blur-[var(--glass-blur)] border border-glass-border shadow-xl;
+    @apply bg-glass-background backdrop-blur-[var(--glass-blur)] border border-glass-border shadow-[0_20px_50px_rgba(0,0,0,0.1)] hover:shadow-[0_30px_70px_rgba(99,102,241,0.15)] transition-all duration-500 rounded-[2rem];
   }
 
   .glass-navbar {
-    @apply bg-background/70 backdrop-blur-md border-b border-white/10 sticky top-0 z-50;
+    @apply bg-background/60 backdrop-blur-xl border-b border-glass-border sticky top-0 z-50 transition-all duration-500;
   }
 
   .glass-panel {
-    @apply bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2rem] shadow-2xl;
+    @apply bg-glass-background backdrop-blur-[var(--glass-blur)] border border-glass-border rounded-[3rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)];
+  }
+
+  .glass-glow {
+    @apply relative overflow-hidden;
+  }
+
+  .glass-glow::after {
+    content: "";
+    @apply absolute -inset-[1px] bg-gradient-to-br from-white/20 to-transparent -z-10 opacity-50;
   }
 }

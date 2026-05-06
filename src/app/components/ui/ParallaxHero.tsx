@@ -1,4 +1,4 @@
-import { motion, useScroll, useTransform } from "motion/react";
+import { motion, useScroll, useTransform, useSpring } from "motion/react";
 import { useRef } from "react";
 import ImageWithFallback from "../figma/ImageWithFallback";
 
@@ -18,14 +18,20 @@ export default function ParallaxHero({ title, subtitle, badge, image, video, chi
     offset: ["start start", "end start"],
   });
 
-  const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
-  const textY = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
+  const rawBackgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "25%"]);
+  const rawTextY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
+  
+  const backgroundY = useSpring(rawBackgroundY, { stiffness: 100, damping: 30, restDelta: 0.001 });
+  const textY = useSpring(rawTextY, { stiffness: 100, damping: 30, restDelta: 0.001 });
   const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   return (
     <section ref={ref} className="relative min-h-[100dvh] h-[100dvh] overflow-hidden flex items-center justify-center">
       {/* Background Layer */}
-      <motion.div style={{ y: backgroundY }} className="absolute inset-0 z-0">
+      <motion.div 
+        style={{ y: backgroundY, translateZ: 0 }} 
+        className="absolute inset-0 z-0 transform-gpu will-change-transform"
+      >
         {video ? (
           <video
             autoPlay
@@ -43,22 +49,22 @@ export default function ParallaxHero({ title, subtitle, badge, image, video, chi
             className="w-full h-full object-cover"
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/60" />
       </motion.div>
 
       {/* Content Layer */}
       <motion.div 
-        style={{ y: textY, opacity }}
-        className="relative z-10 container mx-auto px-4 lg:px-8 text-center pt-32 pb-24"
+        style={{ y: textY, opacity, translateZ: 0 }}
+        className="relative z-10 container mx-auto px-4 lg:px-8 text-center pt-24 pb-16 transform-gpu will-change-transform"
       >
         {badge && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="inline-block px-6 py-2 bg-secondary/90 text-[#020617] rounded-full mb-6 backdrop-blur-md border border-white/20 shadow-xl"
+            className="inline-block px-5 py-1.5 bg-secondary/90 text-[#020617] rounded-full mb-4 backdrop-blur-md border border-white/20 shadow-xl"
           >
-            <span className="text-sm font-bold tracking-[0.2em] uppercase">{badge}</span>
+            <span className="text-xs font-bold tracking-[0.2em] uppercase">{badge}</span>
           </motion.div>
         )}
         
@@ -66,7 +72,7 @@ export default function ParallaxHero({ title, subtitle, badge, image, video, chi
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="text-white drop-shadow-2xl mb-8"
+          className="text-white drop-shadow-2xl mb-6"
         >
           {title}
         </motion.h1>
@@ -93,7 +99,7 @@ export default function ParallaxHero({ title, subtitle, badge, image, video, chi
       </motion.div>
 
       {/* Dynamic Overlay Elements */}
-      <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-background to-transparent z-20" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-background/20 z-20" />
     </section>
   );
 }

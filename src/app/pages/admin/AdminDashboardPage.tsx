@@ -111,6 +111,7 @@ export function AdminDashboardPage() {
   const quickLinks = [
     { title: "Manage Treks", description: "Packages & Pricing", link: "/managepage/dashboard/treks", icon: Mountain },
     { title: "Journal", description: "Blog & Stories", link: "/managepage/dashboard/journal", icon: BookOpen },
+    { title: "Media", description: "Global Assets", link: "/managepage/dashboard/images", icon: Monitor },
     { title: "Gallery", description: "Visual Assets", link: "/managepage/dashboard/gallery", icon: Camera },
     { title: "Inquiries", description: "Leads & Bookings", link: "/managepage/dashboard/inquiries", icon: Users },
     { title: "Detailed Analytics", description: "Traffic & Sources", link: "/managepage/dashboard/analytics", icon: TrendingUp },
@@ -124,15 +125,15 @@ export function AdminDashboardPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 md:space-y-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col md:flex-row md:items-center justify-between gap-4"
+        className="flex flex-col xl:flex-row xl:items-center justify-between gap-6"
       >
-        <div>
-          <h1 className="font-heading text-4xl text-primary">Namaste, Admin</h1>
-          <p className="text-muted-foreground">Here is what is happening on Idyllic Adventures today.</p>
+        <div className="space-y-1">
+          <h1 className="font-heading text-3xl md:text-4xl text-primary leading-tight">Namaste, Admin</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Here is what is happening on Idyllic Adventures today.</p>
         </div>
         
         {error && (
@@ -184,13 +185,13 @@ export function AdminDashboardPage() {
               All Treks <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {recentTreks.map((trek: any) => (
               <div key={trek.id} className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
                 <div className="w-12 h-12 rounded-xl overflow-hidden bg-muted flex items-center justify-center shrink-0">
                   {trek.main_image ? (
                     <img 
-                      src={trek.main_image.startsWith('http') ? trek.main_image : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/trek-images/${trek.main_image}`} 
+                      src={trek.main_image.startsWith('http') ? trek.main_image : `${(import.meta as any).env.VITE_SUPABASE_URL}/storage/v1/object/public/trek-images/${trek.main_image}`} 
                       alt={trek.title} 
                       className="w-full h-full object-cover" 
                     />

@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { Trek, Notice, mockTreks, mockNotices } from "./mockData";
+import { Notice, mockTreks, mockNotices } from "./mockData";
 
 // Disposable email domains list
 const DISPOSABLE_EMAIL_DOMAINS = new Set([
@@ -400,6 +400,25 @@ export const TREK_IMAGES_BUCKET = "trek-images";
 export const JOURNAL_IMAGES_BUCKET = "journal-images";
 export const GALLERY_IMAGES_BUCKET = "gallery-images";
 
+export interface Trek {
+  id: string;
+  title: string;
+  description: string;
+  duration: string;
+  difficulty: "Easy" | "Moderate" | "Challenging" | "Difficult";
+  maxAltitude: string;
+  bestSeason: string;
+  groupSize: string;
+  price: string;
+  image: string;
+  featured: boolean;
+  highlights: string[];
+  itinerary: any[];
+  sortOrder: number;
+  videoUrl: string | null;
+  createdAt: string;
+}
+
 interface TrekRecord {
   id: string;
   title: string;
@@ -414,6 +433,8 @@ interface TrekRecord {
   featured: boolean;
   highlights: string[] | null;
   itinerary: Trek["itinerary"] | null;
+  video_url: string | null;
+  sort_order?: number;
   created_at?: string;
 }
 
@@ -423,6 +444,8 @@ interface NoticeRecord {
   message: string;
   date: string;
   type: Notice["type"];
+  target_page: string;
+  expires_at: string | null;
   created_at?: string;
 }
 
@@ -492,7 +515,9 @@ export interface Inquiry {
   peopleCount: number | null;
   preferredDate: string | null;
   message: string;
+  internalNotes: string | null;
   sourcePath: string | null;
+  isSpam: boolean;
   createdAt: string;
 }
 
@@ -507,11 +532,25 @@ interface InquiryRecord {
   people_count: number | null;
   preferred_date: string | null;
   message: string;
+  internal_notes: string | null;
   source_path: string | null;
+  is_spam: boolean;
   created_at: string;
 }
 
-function mapTrekRecordToTrek(record: TrekRecord): Trek {
+export async function bulkDeleteInquiries(ids: string[]): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("inquiries").delete().in("id", ids);
+  if (error) throw error;
+}
+
+export async function bulkUpdateInquiryStatus(ids: string[], status: "new" | "in_progress" | "closed"): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("inquiries").update({ status }).in("id", ids);
+  if (error) throw error;
+}
+
+function mapTrekRecordToTrek(record: any): Trek {
   return {
     id: record.id,
     title: record.title,
@@ -526,10 +565,13 @@ function mapTrekRecordToTrek(record: TrekRecord): Trek {
     featured: record.featured,
     highlights: record.highlights ?? [],
     itinerary: record.itinerary ?? [],
+    sortOrder: record.sort_order || 0,
+    videoUrl: record.video_url || null,
+    createdAt: record.created_at,
   };
 }
 
-function mapTrekToRecord(trek: Trek): Omit<TrekRecord, "created_at"> {
+function mapTrekToRecord(trek: Trek): any {
   return {
     id: trek.id,
     title: trek.title,
@@ -544,16 +586,21 @@ function mapTrekToRecord(trek: Trek): Omit<TrekRecord, "created_at"> {
     featured: trek.featured,
     highlights: trek.highlights,
     itinerary: trek.itinerary,
+    sort_order: trek.sortOrder,
+    video_url: trek.videoUrl,
   };
 }
 
-function mapNoticeRecordToNotice(record: NoticeRecord): Notice {
+function mapNoticeRecordToNotice(record: any): Notice {
   return {
     id: record.id,
     title: record.title,
     message: record.message,
     date: record.date,
     type: record.type,
+    targetPage: record.target_page || "all",
+    expiresAt: record.expires_at || null,
+    createdAt: record.created_at,
   };
 }
 
@@ -565,30 +612,39 @@ export async function fetchTreks(): Promise<Trek[]> {
   const { data, error } = await supabase
     .from("treks")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("sort_order", { ascending: true });
 
   if (error) {
-    throw error;
+    console.error("Fetch Treks Error:", error);
+    return [];
   }
 
-  return (data as TrekRecord[]).map(mapTrekRecordToTrek);
+  return (data || []).map(mapTrekRecordToTrek);
 }
 
-export async function fetchNotices(): Promise<Notice[]> {
+export async function fetchNotices(includeExpired = false): Promise<Notice[]> {
   if (!supabase) {
     return mockNotices;
   }
 
-  const { data, error } = await supabase
-    .from("notices")
-    .select("*")
-    .order("date", { ascending: false });
+  try {
+    let query = supabase
+      .from("notices")
+      .select("*")
+      .order("date", { ascending: false });
 
-  if (error) {
-    throw error;
+    if (!includeExpired) {
+      const now = new Date().toISOString();
+      query = query.or(`expires_at.is.null,expires_at.gt.${now}`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []).map(mapNoticeRecordToNotice);
+  } catch (error) {
+    console.error("Fetch Notices Error:", error);
+    return [];
   }
-
-  return (data as NoticeRecord[]).map(mapNoticeRecordToNotice);
 }
 
 export function subscribeToTreks(onChange: () => void): () => void {
@@ -675,13 +731,13 @@ export async function deleteTrek(id: string): Promise<void> {
   }
 
   if (previousTrek) {
-    await logAdminAction({
-      action_type: "delete",
-      entity_type: "treks",
-      entity_id: id,
+    await logAdminActivity({
+      actionType: "delete",
+      entityType: "treks",
+      entityId: id,
       details: `Deleted trek: ${previousTrek.title}`,
-      previous_data: previousTrek,
-      new_data: null,
+      previousData: previousTrek,
+      newData: null,
     });
   }
 }
@@ -697,13 +753,13 @@ export async function createTrek(trek: Trek): Promise<void> {
     throw error;
   }
 
-  await logAdminAction({
-    action_type: "create",
-    entity_type: "treks",
-    entity_id: trek.id,
+  await logAdminActivity({
+    actionType: "create",
+    entityType: "treks",
+    entityId: trek.id,
     details: `Created new trek: ${trek.title}`,
-    previous_data: null,
-    new_data: record,
+    previousData: null,
+    newData: record,
   });
 }
 
@@ -732,6 +788,7 @@ export async function updateTrek(
   if (patch.featured !== undefined) payload.featured = patch.featured;
   if (patch.highlights !== undefined) payload.highlights = patch.highlights;
   if (patch.itinerary !== undefined) payload.itinerary = patch.itinerary;
+  if (patch.videoUrl !== undefined) payload.video_url = patch.videoUrl;
 
   const { error } = await supabase.from("treks").update(payload).eq("id", id);
   if (error) {
@@ -739,15 +796,21 @@ export async function updateTrek(
   }
 
   if (previousTrek) {
-    await logAdminAction({
-      action_type: "update",
-      entity_type: "treks",
-      entity_id: id,
+    await logAdminActivity({
+      actionType: "update",
+      entityType: "treks",
+      entityId: id,
       details: `Updated trek: ${patch.title || previousTrek.title}`,
-      previous_data: previousTrek,
-      new_data: payload,
+      previousData: previousTrek,
+      newData: payload,
     });
   }
+}
+
+export async function updateTrekSortOrder(id: string, sortOrder: number): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("treks").update({ sort_order: sortOrder }).eq("id", id);
+  if (error) throw error;
 }
 
 export async function deleteNotice(id: string): Promise<void> {
@@ -764,13 +827,13 @@ export async function deleteNotice(id: string): Promise<void> {
   }
 
   if (previousNotice) {
-    await logAdminAction({
-      action_type: "delete",
-      entity_type: "notices",
-      entity_id: id,
+    await logAdminActivity({
+      actionType: "delete",
+      entityType: "notices",
+      entityId: id,
       details: `Deleted notice: ${previousNotice.title}`,
-      previous_data: previousNotice,
-      new_data: null,
+      previousData: previousNotice,
+      newData: null,
     });
   }
 }
@@ -785,13 +848,13 @@ export async function updateNotice(id: string, noticeUpdate: Partial<Omit<Notice
   if (error) throw error;
 
   if (previousNotice) {
-    await logAdminAction({
-      action_type: "update",
-      entity_type: "notices",
-      entity_id: id,
+    await logAdminActivity({
+      actionType: "update",
+      entityType: "notices",
+      entityId: id,
       details: `Updated notice: ${noticeUpdate.title || previousNotice.title}`,
-      previous_data: previousNotice,
-      new_data: { ...previousNotice, ...noticeUpdate },
+      previousData: previousNotice,
+      newData: { ...previousNotice, ...noticeUpdate },
     });
   }
 }
@@ -808,13 +871,13 @@ export async function createNotice(
     throw error;
   }
 
-  await logAdminAction({
-    action_type: "create",
-    entity_type: "notices",
-    entity_id: data?.id || "new",
+  await logAdminActivity({
+    actionType: "create",
+    entityType: "notices",
+    entityId: data?.id || "new",
     details: `Created new notice: ${notice.title}`,
-    previous_data: null,
-    new_data: notice,
+    previousData: null,
+    newData: notice,
   });
 }
 
@@ -853,19 +916,116 @@ export async function deleteStoredTrekImage(imageUrl: string): Promise<void> {
 
   const bucketPrefix = `/storage/v1/object/public/${TREK_IMAGES_BUCKET}/`;
   const index = imageUrl.indexOf(bucketPrefix);
-
-  if (index === -1) {
-    return;
-  }
-
-  const path = imageUrl.slice(index + bucketPrefix.length);
-  const { error } = await supabase.storage.from(TREK_IMAGES_BUCKET).remove([path]);
-  if (error) {
-    throw error;
+  if (index !== -1) {
+    const path = imageUrl.substring(index + bucketPrefix.length);
+    const { error } = await supabase.storage.from(TREK_IMAGES_BUCKET).remove([path]);
+    if (error) throw error;
   }
 }
 
+export type MediaAsset = {
+  id: string;
+  name: string;
+  url: string;
+  bucket: string;
+  created_at: string;
+  size: number;
+};
 
+export async function getAllMedia(): Promise<MediaAsset[]> {
+  if (!supabase) return [];
+  
+  const buckets = [TREK_IMAGES_BUCKET, JOURNAL_IMAGES_BUCKET, GALLERY_IMAGES_BUCKET];
+  const allMedia: MediaAsset[] = [];
+  const externalUrls = new Set<string>();
+  
+  // 1. Fetch from buckets
+  for (const bucket of buckets) {
+    const { data, error } = await supabase.storage.from(bucket).list('', {
+      limit: 1000,
+      offset: 0,
+      sortBy: { column: 'created_at', order: 'desc' }
+    });
+    
+    if (!error && data) {
+      for (const file of data) {
+        if (file.name !== '.emptyFolderPlaceholder') {
+          const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(file.name);
+          allMedia.push({
+            id: file.id || `${bucket}-${file.name}`,
+            name: file.name,
+            url: urlData.publicUrl,
+            bucket,
+            created_at: file.created_at || new Date().toISOString(),
+            size: file.metadata?.size || 0
+          });
+          externalUrls.add(urlData.publicUrl);
+        }
+      }
+    }
+  }
+
+  // 2. Fetch external URLs from tables
+  try {
+    const [treksReq, journalReq, galleryReq, settingsReq] = await Promise.all([
+      supabase.from("treks").select("image, gallery"),
+      supabase.from("journal_entries").select("cover_image"),
+      supabase.from("gallery_images").select("url"),
+      supabase.from("site_settings").select("value").ilike("key", "%image%")
+    ]);
+
+    const maybeAddUrl = (url: string) => {
+      if (url && typeof url === 'string' && url.startsWith('http') && !externalUrls.has(url)) {
+        externalUrls.add(url);
+        const name = url.split('/').pop()?.split('?')[0] || "external-image";
+        allMedia.push({
+          id: `ext-${Math.random()}`,
+          name: name,
+          url: url,
+          bucket: 'external',
+          created_at: new Date().toISOString(),
+          size: 0
+        });
+      }
+    };
+
+    treksReq.data?.forEach((row: any) => {
+      maybeAddUrl(row.image);
+      row.gallery?.forEach((url: string) => maybeAddUrl(url));
+    });
+    
+    journalReq.data?.forEach((row: any) => maybeAddUrl(row.cover_image));
+    galleryReq.data?.forEach((row: any) => maybeAddUrl(row.url));
+    settingsReq.data?.forEach((row: any) => maybeAddUrl(row.value));
+
+  } catch (err) {
+    console.error("Failed to fetch external media from DB:", err);
+  }
+  
+  return allMedia.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
+export async function renameMediaAsset(bucket: string, oldName: string, newName: string): Promise<void> {
+  if (!supabase) return;
+  
+  const { error } = await supabase.storage.from(bucket).move(oldName, newName);
+  if (error) throw error;
+
+  await logAdminActivity({
+    actionType: "update",
+    entityType: "storage",
+    entityId: `${bucket}/${newName}`,
+    details: `Renamed media from ${oldName} to ${newName}`,
+    previousData: { name: oldName },
+    newData: { name: newName }
+  });
+}
+
+export async function deleteMediaAsset(bucket: string, fileName: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.storage.from(bucket).remove([fileName]);
+  if (error) throw error;
+}
 
 function getSessionId(): string {
   if (typeof window === "undefined") return "server-side";
@@ -1033,7 +1193,6 @@ export async function fetchWebsiteEvents(hours = 24): Promise<WebsiteEvent[]> {
 
   const from = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 
-  // First try to fetch with all columns (new version)
   const { data, error } = await supabase
     .from("website_events")
     .select("*")
@@ -1042,10 +1201,11 @@ export async function fetchWebsiteEvents(hours = 24): Promise<WebsiteEvent[]> {
     .limit(5000);
 
   if (error) {
-    throw error;
+    console.error("Fetch Events Error:", error);
+    return [];
   }
 
-  return (data as any[]).map(record => ({
+  return (data || []).map(record => ({
     id: record.id,
     eventType: record.event_type,
     path: record.path,
@@ -1061,25 +1221,6 @@ export async function fetchWebsiteEvents(hours = 24): Promise<WebsiteEvent[]> {
     locationLabel: record.location_label || "Legacy Data",
     createdAt: record.created_at,
   }));
-}
-
-function mapWebsiteEventRecordToEvent(record: WebsiteEventRecord): WebsiteEvent {
-  return {
-    id: record.id,
-    eventType: record.event_type,
-    path: record.path,
-    referrer: record.referrer,
-    referrerSource: record.referrer_source as any,
-    userAgent: record.user_agent,
-    sessionId: record.session_id,
-    duration: record.duration,
-    country: record.country,
-    region: record.region,
-    city: record.city,
-    countryCode: record.country_code,
-    locationLabel: record.location_label,
-    createdAt: record.created_at,
-  };
 }
 
 export function subscribeToWebsiteEvents(onChange: () => void): () => void {
@@ -1113,7 +1254,9 @@ function mapInquiryRecordToInquiry(record: InquiryRecord): Inquiry {
     peopleCount: record.people_count,
     preferredDate: record.preferred_date,
     message: record.message,
+    internalNotes: record.internal_notes || null,
     sourcePath: record.source_path,
+    isSpam: record.is_spam || false,
     createdAt: record.created_at,
   };
 }
@@ -1185,11 +1328,6 @@ export async function createInquiryWithValidation(payload: {
     honeypot: payload.honeypot,
   });
 
-  if (spamCheck.isSpam) {
-    await logSubmission(ipAddress, null, true, spamCheck.reason);
-    return "blocked";
-  }
-
   const cleanPayload = {
     inquiry_type: payload.inquiryType,
     name: payload.name.trim(),
@@ -1203,6 +1341,8 @@ export async function createInquiryWithValidation(payload: {
     preferred_date: payload.preferredDate || null,
     message: payload.message.trim(),
     source_path: payload.sourcePath?.trim().slice(0, 300) || null,
+    is_spam: spamCheck.isSpam,
+    client_ip: ipAddress,
   };
 
   const { data, error } = await supabase
@@ -1215,7 +1355,12 @@ export async function createInquiryWithValidation(payload: {
     throw new Error(error.message || error.details || "Database insertion failed");
   }
 
-  await logSubmission(ipAddress, data.id, false);
+  await logSubmission(ipAddress, data.id, spamCheck.isSpam, spamCheck.reason);
+  
+  if (spamCheck.isSpam) {
+    return "blocked"; // Still return blocked to UI to show "Potential spam" message
+  }
+
   return "submitted";
 }
 
@@ -1231,24 +1376,41 @@ export async function fetchInquiries(): Promise<Inquiry[]> {
     .limit(5000);
 
   if (error) {
-    throw error;
+    console.error("Fetch Inquiries Error:", error);
+    return [];
   }
 
-  return (data as InquiryRecord[]).map(mapInquiryRecordToInquiry);
+  return (data || []).map(mapInquiryRecordToInquiry);
 }
 
 export async function updateInquiryStatus(
   id: string,
-  status: "new" | "in_progress" | "closed"
+  status: "new" | "in_progress" | "closed",
+  internalNotes?: string
 ): Promise<void> {
   if (!supabase) {
     return;
   }
 
-  const { error } = await supabase.from("inquiries").update({ status }).eq("id", id);
+  const updateData: any = { status };
+  if (internalNotes !== undefined) {
+    updateData.internal_notes = internalNotes;
+  }
+
+  const { error } = await supabase.from("inquiries").update(updateData).eq("id", id);
   if (error) {
     throw error;
   }
+
+  // Log the activity
+  await logAdminActivity({
+    actionType: "update",
+    entityType: "inquiry",
+    entityId: id,
+    details: `Updated inquiry status to ${status}${internalNotes ? ' with notes' : ''}`,
+    previousData: null,
+    newData: updateData
+  });
 }
 
 export async function deleteInquiry(id: string): Promise<void> {
@@ -1260,6 +1422,31 @@ export async function deleteInquiry(id: string): Promise<void> {
   if (error) {
     throw error;
   }
+
+  // Log the activity
+  await logAdminActivity({
+    actionType: "delete",
+    entityType: "inquiry",
+    entityId: id,
+    details: "Deleted inquiry record",
+    previousData: id,
+    newData: null
+  });
+}
+
+export async function unspamInquiry(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("inquiries").update({ is_spam: false }).eq("id", id);
+  if (error) throw error;
+
+  await logAdminActivity({
+    actionType: "update",
+    entityType: "inquiry",
+    entityId: id,
+    details: "Marked inquiry as not spam (unspammed)",
+    previousData: { is_spam: true },
+    newData: { is_spam: false }
+  });
 }
 
 export function subscribeToInquiries(onChange: () => void): () => void {
@@ -1294,6 +1481,8 @@ export interface JournalEntry {
   authorRole: string | null;
   authorBio: string | null;
   authorImage: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1311,6 +1500,8 @@ interface JournalEntryRecord {
   author_role: string | null;
   author_bio: string | null;
   author_image: string | null;
+  seo_title: string | null;
+  seo_description: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1321,6 +1512,10 @@ export interface GalleryImage {
   description: string | null;
   url: string;
   category: string | null;
+  albumName: string;
+  isVideo?: boolean;
+  videoUrl?: string | null;
+  isWatermarked?: boolean;
   createdAt: string;
 }
 
@@ -1330,10 +1525,26 @@ interface GalleryImageRecord {
   description: string | null;
   url: string;
   category: string | null;
+  album_name: string;
+  is_video: boolean;
+  video_url: string | null;
+  is_watermarked: boolean;
   created_at: string;
 }
 
-function mapJournalRecordToEntry(record: JournalEntryRecord): JournalEntry {
+export interface AdminActivityLog {
+  id: string;
+  userId: string | null;
+  actionType: string;
+  entityType: string;
+  entityId: string | null;
+  details: string | null;
+  previousData?: any | null;
+  newData?: any | null;
+  createdAt: string;
+}
+
+function mapJournalRecordToEntry(record: any): JournalEntry {
   return {
     id: record.id,
     title: record.title,
@@ -1347,6 +1558,8 @@ function mapJournalRecordToEntry(record: JournalEntryRecord): JournalEntry {
     authorRole: record.author_role,
     authorBio: record.author_bio,
     authorImage: record.author_image,
+    seoTitle: record.seo_title,
+    seoDescription: record.seo_description,
     createdAt: record.created_at,
     updatedAt: record.updated_at,
   };
@@ -1359,6 +1572,10 @@ function mapGalleryRecordToImage(record: GalleryImageRecord): GalleryImage {
     description: record.description,
     url: record.url,
     category: record.category,
+    albumName: record.album_name,
+    isVideo: record.is_video,
+    videoUrl: record.video_url,
+    isWatermarked: record.is_watermarked,
     createdAt: record.created_at,
   };
 }
@@ -1373,9 +1590,12 @@ export async function fetchJournalEntries(onlyPublished = true): Promise<Journal
   }
 
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) {
+    console.error("Fetch Journal Error:", error);
+    return [];
+  }
 
-  return (data as JournalEntryRecord[]).map(mapJournalRecordToEntry);
+  return (data || []).map(mapJournalRecordToEntry);
 }
 
 export async function fetchJournalEntryBySlug(slug: string): Promise<JournalEntry | null> {
@@ -1394,7 +1614,7 @@ export async function fetchJournalEntryBySlug(slug: string): Promise<JournalEntr
 export async function createJournalEntry(entry: Omit<JournalEntry, "id" | "createdAt" | "updatedAt">): Promise<void> {
   if (!supabase) return;
 
-  const { error } = await supabase.from("journal_entries").insert({
+  const { data, error } = await supabase.from("journal_entries").insert({
     title: entry.title,
     slug: entry.slug,
     content: entry.content,
@@ -1406,9 +1626,20 @@ export async function createJournalEntry(entry: Omit<JournalEntry, "id" | "creat
     author_role: entry.authorRole,
     author_bio: entry.authorBio,
     author_image: entry.authorImage,
-  });
+    seo_title: entry.seoTitle || null,
+    seo_description: entry.seoDescription || null,
+  }).select("id").single();
 
   if (error) throw error;
+
+  await logAdminActivity({
+    actionType: "create",
+    entityType: "journal",
+    entityId: data.id,
+    details: `Created story: ${entry.title}`,
+    previousData: null,
+    newData: entry
+  });
 }
 
 export async function updateJournalEntry(id: string, patch: Partial<JournalEntry>): Promise<void> {
@@ -1433,8 +1664,19 @@ export async function updateJournalEntry(id: string, patch: Partial<JournalEntry
     updateData.author_image = patch.authorImage;
     delete updateData.authorImage;
   }
+  if (patch.seoTitle !== undefined) {
+    updateData.seo_title = patch.seoTitle;
+    delete updateData.seoTitle;
+  }
+  if (patch.seoDescription !== undefined) {
+    updateData.seo_description = patch.seoDescription;
+    delete updateData.seoDescription;
+  }
   if (patch.createdAt !== undefined) delete updateData.createdAt;
   if (patch.updatedAt !== undefined) delete updateData.updatedAt;
+
+  // Get previous state
+  const { data: previousEntry } = await supabase.from("journal_entries").select("*").eq("id", id).single();
 
   const { error } = await supabase
     .from("journal_entries")
@@ -1442,12 +1684,31 @@ export async function updateJournalEntry(id: string, patch: Partial<JournalEntry
     .eq("id", id);
 
   if (error) throw error;
+
+  await logAdminActivity({
+    actionType: "update",
+    entityType: "journal",
+    entityId: id,
+    details: `Updated story: ${patch.title || previousEntry?.title}`,
+    previousData: previousEntry,
+    newData: { ...previousEntry, ...updateData }
+  });
 }
 
 export async function deleteJournalEntry(id: string): Promise<void> {
   if (!supabase) return;
+  const { data: previousEntry } = await supabase.from("journal_entries").select("*").eq("id", id).single();
   const { error } = await supabase.from("journal_entries").delete().eq("id", id);
   if (error) throw error;
+
+  await logAdminActivity({
+    actionType: "delete",
+    entityType: "journal",
+    entityId: id,
+    details: `Deleted story: ${previousEntry?.title}`,
+    previousData: previousEntry,
+    newData: null
+  });
 }
 
 export function subscribeToJournal(onChange: () => void): () => void {
@@ -1469,27 +1730,89 @@ export async function fetchGalleryImages(): Promise<GalleryImage[]> {
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) throw error;
-  return (data as GalleryImageRecord[]).map(mapGalleryRecordToImage);
+  if (error) {
+    console.error("Fetch Gallery Error:", error);
+    return [];
+  }
+  
+  return (data || []).map(mapGalleryRecordToImage);
 }
 
 export async function addGalleryImage(image: Omit<GalleryImage, "id" | "createdAt">): Promise<void> {
   if (!supabase) return;
 
-  const { error } = await supabase.from("gallery_images").insert({
+  const { data, error } = await supabase.from("gallery_images").insert({
     title: image.title,
     description: image.description,
     url: image.url,
     category: image.category,
-  });
+    album_name: image.albumName,
+    is_video: image.isVideo || false,
+    video_url: image.videoUrl || null,
+    is_watermarked: image.isWatermarked || false,
+  }).select("id").single();
 
   if (error) throw error;
+
+  await logAdminActivity({
+    actionType: "create",
+    entityType: "gallery",
+    entityId: data.id,
+    details: `Added media: ${image.title}`,
+    previousData: null,
+    newData: image
+  });
+}
+
+export async function bulkDeleteGalleryImages(ids: string[]): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("gallery_images").delete().in("id", ids);
+  if (error) throw error;
+
+  await logAdminActivity({
+    actionType: "delete",
+    entityType: "gallery",
+    entityId: "multiple",
+    details: `Bulk deleted ${ids.length} media items`,
+    previousData: ids,
+    newData: null
+  });
+}
+
+export async function updateGalleryImage(id: string, patch: Partial<GalleryImage>): Promise<void> {
+  if (!supabase) return;
+  const record: any = { ...patch };
+  if (patch.albumName) {
+    record.album_name = patch.albumName;
+    delete record.albumName;
+  }
+  const { data: previousImage } = await supabase.from("gallery_images").select("*").eq("id", id).single();
+  const { error } = await supabase.from("gallery_images").update(record).eq("id", id);
+  if (error) throw error;
+
+  await logAdminActivity({
+    actionType: "update",
+    entityType: "gallery",
+    entityId: id,
+    details: `Updated media: ${patch.title || previousImage?.title}`,
+    previousData: previousImage,
+    newData: { ...previousImage, ...record }
+  });
 }
 
 export async function deleteGalleryImage(id: string): Promise<void> {
   if (!supabase) return;
+  const { data: previousImage } = await supabase.from("gallery_images").select("*").eq("id", id).single();
   const { error } = await supabase.from("gallery_images").delete().eq("id", id);
   if (error) throw error;
+
+  await logAdminActivity({
+    actionType: "delete",
+    entityType: "gallery",
+    entityId: id,
+    details: `Deleted media: ${previousImage?.title}`,
+    previousData: previousImage
+  });
 }
 
 export function subscribeToGallery(onChange: () => void): () => void {
@@ -1553,4 +1876,119 @@ export async function checkAndSetupStorage(): Promise<{
   }
 
   return { missing, errors };
-}
+}
+
+// Admin Activity Logging
+export async function logAdminActivity(activity: Omit<AdminActivityLog, "id" | "createdAt" | "userId">): Promise<void> {
+  if (!supabase) return;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase.from("admin_activity_logs").insert({
+    user_id: user.id,
+    action_type: activity.actionType,
+    entity_type: activity.entityType,
+    entity_id: activity.entityId,
+    details: activity.details,
+    previous_data: activity.previousData,
+    new_data: activity.newData
+  });
+}
+
+export async function fetchAdminActivityLogs(limit = 100): Promise<AdminActivityLog[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("admin_activity_logs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data as any[]).map(record => ({
+    id: record.id,
+    userId: record.user_id,
+    actionType: record.action_type,
+    entityType: record.entity_type,
+    entityId: record.entity_id,
+    details: record.details,
+    previousData: record.previous_data,
+    newData: record.new_data,
+    createdAt: record.created_at,
+  }));
+}
+
+export async function isMaintenanceMode(): Promise<boolean> {
+  const settings = await getSiteSettings();
+  return settings.maintenance_mode === "true";
+}
+
+/**
+ * Advanced System Helpers
+ */
+
+export async function downloadSiteBackup(): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  
+  try {
+    const tables = [
+      "treks", 
+      "journal_entries", 
+      "notices", 
+      "gallery_images", 
+      "inquiries", 
+      "site_settings",
+      "admin_logs",
+      "admin_activity_logs",
+      "spam_config"
+    ];
+    
+    const backup: Record<string, any> = {
+      version: "2.1",
+      timestamp: new Date().toISOString(),
+      data: {}
+    };
+
+    const results = await Promise.all(tables.map(table => supabase!.from(table).select("*")));
+    
+    tables.forEach((table, i) => {
+      backup.data[table] = results[i].data || [];
+    });
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `idyllic-full-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Backup failed:", error);
+    throw error;
+  }
+}
+
+export function exportToCSV(data: any[], filename: string): void {
+  if (data.length === 0) return;
+  
+  const headers = Object.keys(data[0]);
+  const csvContent = [
+    headers.join(","),
+    ...data.map(row => 
+      headers.map(header => {
+        const cell = row[header] === null || row[header] === undefined ? "" : String(row[header]);
+        return `"${cell.replace(/"/g, '""')}"`;
+      }).join(",")
+    )
+  ].join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+

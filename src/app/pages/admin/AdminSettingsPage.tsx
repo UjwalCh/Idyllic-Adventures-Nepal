@@ -9,10 +9,13 @@ import {
   updateSpamConfig,
   uploadImage,
   revertAdminAction,
+  downloadSiteBackup,
+  exportToCSV,
   TREK_IMAGES_BUCKET,
   type SiteSettings,
   type SpamConfig,
   type AdminLog,
+  type AdminActivityLog,
 } from "../../data/supabaseData";
 import { useAdminLogs } from "../../data/useRealtimeData";
 import { 
@@ -41,7 +44,14 @@ import {
   Twitter,
   AlertCircle,
   Lock,
+  Download,
+  Trash2, 
+  Plus, 
+  Search, 
+  BookOpen,
+  Database
 } from "lucide-react";
+import { MediaPickerModal } from "../../components/ui/MediaPickerModal";
 
 const TABS = [
   { id: "general", label: "General & Brand", icon: Info },
@@ -49,9 +59,20 @@ const TABS = [
   { id: "about", label: "About & Guide", icon: Info },
   { id: "other", label: "Other Pages", icon: Layout },
   { id: "seo", label: "SEO & Meta", icon: Globe },
-  { id: "security", label: "Security & Logs", icon: ShieldCheck },
-  { id: "activity", label: "Activity Log", icon: History },
-];
+  { id: "security", label: "Security & System", icon: ShieldCheck },
+  { id: "activity", label: "Admin Activity", icon: History },
+] as const;
+
+type TabId = typeof TABS[number]["id"];
+
+interface SettingField {
+  key: string;
+  label: string;
+  placeholder?: string;
+  multiline?: boolean;
+  isImage?: boolean;
+  isToggle?: boolean;
+}
 
 const SITE_SETTING_CATEGORIES = [
   {
@@ -85,13 +106,6 @@ const SITE_SETTING_CATEGORIES = [
           { key: "social_twitter", label: "Twitter URL", icon: Twitter },
           { key: "social_youtube", label: "YouTube URL", icon: Youtube },
           { key: "footer_description", label: "Footer Bio / Description", multiline: true },
-        ]
-      },
-      {
-        title: "Enquiry Alerts",
-        fields: [
-          { key: "enquiry_notifications_enabled", label: "Email Notifications", isToggle: true },
-          { key: "enquiry_email", label: "Notification Email", icon: Mail, placeholder: "Where to send leads?" },
         ]
       }
     ]
@@ -187,12 +201,20 @@ const SITE_SETTING_CATEGORIES = [
   },
   {
     id: "security",
-    category: "Security",
+    category: "Security & System",
     sections: [
       {
-        title: "Admin Access",
+        title: "Access Control",
         fields: [
-          { key: "admin_hotkeys", label: "Secret Hotkeys", placeholder: "e.g. Shift+A or Ctrl+Shift+M" },
+          { key: "admin_hotkeys", label: "Secret Hotkeys", placeholder: "e.g. Shift+A" },
+          { key: "maintenance_mode", label: "Global Maintenance Mode", isToggle: true },
+          { key: "maintenance_pages", label: "Pages Under Maintenance (Granular)" }
+        ]
+      },
+      {
+        title: "Spam Protection",
+        fields: [
+          { key: "spam_sensitivity", label: "Sensitivity Level", placeholder: "low, medium, high" },
         ]
       }
     ]
@@ -215,6 +237,13 @@ const SITE_SETTING_CATEGORIES = [
           { key: "treks_hero_image", label: "Treks Hero Image", isImage: true },
           { key: "treks_hero_title", label: "Hero Title" },
           { key: "treks_hero_description", label: "Hero Description", multiline: true },
+        ]
+      },
+      {
+        title: "Journal Page",
+        fields: [
+          { key: "journal_hero_image", label: "Journal Hero Image", isImage: true },
+          { key: "news_paused", label: "Pause Journal / News Section", isToggle: true },
         ]
       }
     ]
@@ -259,7 +288,7 @@ type SubmissionLog = {
 };
 
 export function AdminSettingsPage() {
-  const [activeTab, setActiveTab] = useState("general");
+  const [activeTab, setActiveTab] = useState<TabId>("general");
   const [loading, setLoading] = useState(true);
   const [savingSite, setSavingSite] = useState(false);
   const [savingSpam, setSavingSpam] = useState(false);
@@ -271,6 +300,43 @@ export function AdminSettingsPage() {
   const { logs: adminLogs, refresh: refreshAdminLogs } = useAdminLogs(50);
   const [isReverting, setIsReverting] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mediaPickerConfig, setMediaPickerConfig] = useState<{open: boolean, key: string | null}>({open: false, key: null});
+  
+  const [searchActivity, setSearchActivity] = useState("");
+  const [activityFilter, setActivityFilter] = useState<"all" | "create" | "update" | "delete">("all");
+  const [activityEntityFilter, setActivityEntityFilter] = useState<string>("all");
+
+  const filteredActivity = useMemo(() => {
+    return adminLogs.filter(log => {
+      const matchesSearch = !searchActivity || 
+        log.details?.toLowerCase().includes(searchActivity.toLowerCase()) ||
+        log.entity_type.toLowerCase().includes(searchActivity.toLowerCase());
+      
+      const matchesAction = activityFilter === "all" || log.action_type === activityFilter;
+      const matchesEntity = activityEntityFilter === "all" || log.entity_type === activityEntityFilter;
+      
+      return matchesSearch && matchesAction && matchesEntity;
+    });
+  }, [adminLogs, searchActivity, activityFilter, activityEntityFilter]);
+
+  const entityTypes = useMemo(() => {
+    const types = new Set(adminLogs.map(l => l.entity_type));
+    return Array.from(types);
+  }, [adminLogs]);
+
+  const exportLogs = (format: "csv" | "json") => {
+    if (format === "json") {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(adminLogs, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href",     dataStr);
+      downloadAnchorNode.setAttribute("download", `activity_logs_${new Date().toISOString()}.json`);
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    } else {
+      exportToCSV(adminLogs, "activity-logs");
+    }
+  };
 
   const blockedCount24h = useMemo(() => logs.filter((item) => item.flagged).length, [logs]);
 
@@ -331,12 +397,28 @@ export function AdminSettingsPage() {
   const handleSaveSite = async () => {
     setSavingSite(true);
     try {
+      // If we are in security tab, we might also want to save spam config
+      if (activeTab === "security") {
+        await handleSaveSpam();
+      }
+      
       await updateSiteSettings(siteSettings);
-      toast.success("All site content updated successfully!");
+      toast.success("Settings updated successfully!");
     } catch (error) {
       toast.error("Failed to save changes");
     } finally {
       setSavingSite(false);
+    }
+  };
+
+  const handleDownloadBackup = async () => {
+    try {
+      toast.loading("Preparing backup...");
+      await downloadSiteBackup();
+      toast.dismiss();
+      toast.success("Backup downloaded!");
+    } catch (err) {
+      toast.error("Backup failed");
     }
   };
 
@@ -387,7 +469,7 @@ export function AdminSettingsPage() {
           <h1 className="font-heading text-5xl text-primary mb-2">Settings</h1>
           <p className="text-muted-foreground">Customize your website content, branding, and security with live preview.</p>
         </div>
-        {activeTab !== "security" && activeTab !== "activity" && (
+        {activeTab !== "activity" && (
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <button
               onClick={handleSaveSite}
@@ -432,43 +514,127 @@ export function AdminSettingsPage() {
               <div className="glass-panel p-8">
                 <div className="flex items-center justify-between mb-8">
                   <div>
-                    <h2 className="font-heading text-2xl">Spam Protection</h2>
-                    <p className="text-sm text-muted-foreground">Configure how the system handles inquiries.</p>
+                    <h2 className="font-heading text-2xl">Advanced System Controls</h2>
+                    <p className="text-sm text-muted-foreground">Manage high-level security and system behavior.</p>
                   </div>
                   <button
-                    onClick={handleSaveSpam}
-                    disabled={savingSpam}
-                    className="px-6 py-2 bg-accent text-white rounded-xl font-bold hover:scale-105 transition-transform disabled:opacity-50"
+                    onClick={handleDownloadBackup}
+                    className="flex items-center gap-3 px-8 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-accent hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl"
                   >
-                    {savingSpam ? "Saving..." : "Update Security"}
+                    <Download className="w-5 h-5" />
+                    One-Click Backup
                   </button>
                 </div>
 
-                {spamConfig && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                    {[
-                      { key: "enabled", label: "Enable Spam Scoring" },
-                      { key: "use_honeypot", label: "Use Honeypot Trap" },
-                      { key: "check_disposable_emails", label: "Block Temp Emails" },
-                      { key: "check_url_limit", label: "Enforce URL Limit" },
-                    ].map((opt) => (
-                      <label key={opt.key} className="flex items-center gap-4 p-4 rounded-2xl border border-border hover:border-accent transition-colors cursor-pointer group">
-                        <input
-                          type="checkbox"
-                          className="w-5 h-5 rounded-md border-border text-accent focus:ring-accent"
-                          checked={(spamConfig as any)[opt.key]}
-                          onChange={(e) => setSpamConfig({ ...spamConfig, [opt.key]: e.target.checked })}
-                        />
-                        <span className="font-medium group-hover:text-primary transition-colors">{opt.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
 
-                <div className="space-y-12">
-                  {/* Spam Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
                   <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <h3 className="font-bold text-lg border-b pb-2">Spam Engine Config</h3>
+                    {spamConfig && (
+                      <div className="grid grid-cols-1 gap-4">
+                        {[
+                          { key: "enabled", label: "Enable Spam Scoring" },
+                          { key: "use_honeypot", label: "Use Honeypot Trap" },
+                          { key: "check_disposable_emails", label: "Block Temp Emails" },
+                          { key: "check_url_limit", label: "Enforce URL Limit" },
+                        ].map((opt) => (
+                          <label key={opt.key} className="flex items-center gap-4 p-4 rounded-2xl border border-border hover:border-accent transition-colors cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              className="w-5 h-5 rounded-md border-border text-accent focus:ring-accent"
+                              checked={(spamConfig as any)[opt.key]}
+                              onChange={(e) => setSpamConfig({ ...spamConfig, [opt.key]: e.target.checked })}
+                            />
+                            <span className="font-medium group-hover:text-primary transition-colors">{opt.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-6">
+                    <h3 className="font-bold text-lg border-b pb-2">System Access</h3>
+                    <div className="space-y-4">
+                      {SITE_SETTING_CATEGORIES.find(c => c.id === "security")?.sections.map(section => 
+                        section.fields.map((field: any) => (
+                          <div key={field.key} className="space-y-2">
+                             <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{field.label}</label>
+                             {field.isToggle ? (
+                               <div className="flex items-center justify-between p-4 rounded-2xl border border-border">
+                                 <span className="text-sm font-medium">Toggle {field.label}</span>
+                                 <button 
+                                    onClick={() => updateField(field.key, siteSettings[field.key] === "true" ? "false" : "true")}
+                                    className={`relative w-12 h-6 rounded-full transition-colors ${siteSettings[field.key] === "true" ? "bg-accent" : "bg-muted"}`}
+                                  >
+                                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${siteSettings[field.key] === "true" ? "translate-x-6" : ""}`} />
+                                  </button>
+                               </div>
+                             ) : field.key === "admin_hotkeys" ? (
+                                <div className="relative group">
+                                  <input 
+                                    readOnly
+                                    value={siteSettings[field.key] || ""}
+                                    placeholder="Click to record hotkey..."
+                                    onKeyDown={(e) => {
+                                      e.preventDefault();
+                                      const keys = [];
+                                      if (e.ctrlKey) keys.push("Ctrl");
+                                      if (e.shiftKey) keys.push("Shift");
+                                      if (e.altKey) keys.push("Alt");
+                                      if (e.metaKey) keys.push("Meta");
+                                      
+                                      const key = e.key;
+                                      if (!["Control", "Shift", "Alt", "Meta"].includes(key)) {
+                                        keys.push(key.toUpperCase());
+                                        updateField(field.key, keys.join("+"));
+                                      }
+                                    }}
+                                    className="w-full px-4 py-3 bg-muted/30 border border-border rounded-xl font-mono text-center outline-none focus:border-accent transition-all cursor-pointer"
+                                  />
+                                </div>
+                             ) : field.key === "maintenance_pages" ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+                                  {["home", "treks", "gallery", "journal", "contact"].map(page => {
+                                    const activePages = (siteSettings[field.key] || "").toLowerCase().split(",").map(p => p.trim()).filter(Boolean);
+                                    const isChecked = activePages.includes(page);
+                                    return (
+                                      <label key={page} className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${isChecked ? "border-accent bg-accent/5" : "border-border hover:border-accent/50"}`}>
+                                        <input 
+                                          type="checkbox"
+                                          className="w-4 h-4 rounded text-accent"
+                                          checked={isChecked}
+                                          onChange={(e) => {
+                                            let newPages;
+                                            if (e.target.checked) {
+                                              newPages = Array.from(new Set([...activePages, page])).filter(Boolean);
+                                            } else {
+                                              newPages = activePages.filter(p => p !== page);
+                                            }
+                                            updateField(field.key, newPages.join(", "));
+                                          }}
+                                        />
+                                        <span className="text-xs font-bold uppercase tracking-widest capitalize">{page}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                             ) : (
+                               <input 
+                                  value={siteSettings[field.key] || ""}
+                                  onChange={(e) => updateField(field.key, e.target.value)}
+                                  className="w-full px-4 py-3 bg-muted/30 border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-accent"
+                                />
+                             )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-8 border-t border-border">
+                   <h3 className="font-bold text-lg mb-6">Security Fine-tuning</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <label className="block text-sm font-bold">Blocked Keywords</label>
                         <textarea
@@ -479,89 +645,24 @@ export function AdminSettingsPage() {
                         />
                       </div>
                       {spamConfig && (
-                        <div className="space-y-2">
-                          <label className="block text-sm font-bold">Max URLs per message</label>
-                          <input
-                            type="number"
-                            value={spamConfig.max_urls_allowed}
-                            onChange={(e) => setSpamConfig({ ...spamConfig, max_urls_allowed: Number(e.target.value) })}
-                            className="w-full p-4 rounded-2xl border border-border bg-input-background focus:ring-2 focus:ring-accent outline-none"
-                          />
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mt-2">Limits links in contact forms.</p>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <label className="block text-sm font-bold">Max URLs per message</label>
+                            <input
+                              type="number"
+                              value={spamConfig.max_urls_allowed}
+                              onChange={(e) => setSpamConfig({ ...spamConfig, max_urls_allowed: Number(e.target.value) })}
+                              className="w-full p-4 rounded-2xl border border-border bg-input-background focus:ring-2 focus:ring-accent outline-none"
+                            />
+                          </div>
                         </div>
                       )}
-                    </div>
-                  </div>
-
-                  {/* Hotkeys Section */}
-                  <div className="pt-12 border-t border-border">
-                    {SITE_SETTING_CATEGORIES.find(c => c.id === "security")?.sections.map((section) => (
-                      <div key={section.title}>
-                        <div className="flex items-center gap-3 mb-8">
-                          <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center">
-                            <Lock className="w-5 h-5 text-accent" />
-                          </div>
-                          <div>
-                            <h2 className="font-heading text-2xl">{section.title}</h2>
-                            <p className="text-sm text-muted-foreground">Manage your secret login shortcuts.</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {section.fields.map((field) => (
-                            <div key={field.key} className="space-y-4">
-                              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{field.label}</label>
-                              
-                              <div className="relative group">
-                                <input 
-                                  readOnly
-                                  value={siteSettings[field.key] || ""}
-                                  placeholder="Click to record hotkey..."
-                                  onKeyDown={(e) => {
-                                    e.preventDefault();
-                                    const keys = [];
-                                    if (e.ctrlKey) keys.push("Ctrl");
-                                    if (e.shiftKey) keys.push("Shift");
-                                    if (e.altKey) keys.push("Alt");
-                                    if (e.metaKey) keys.push("Meta");
-                                    
-                                    const key = e.key;
-                                    if (!["Control", "Shift", "Alt", "Meta"].includes(key)) {
-                                      keys.push(key.toUpperCase());
-                                      updateField(field.key, keys.join("+"));
-                                    }
-                                  }}
-                                  className="w-full px-5 py-4 bg-primary/5 border-2 border-dashed border-border rounded-2xl text-lg font-mono text-center focus:border-accent focus:bg-accent/5 outline-none transition-all cursor-pointer"
-                                />
-                                <div className="absolute inset-y-0 right-4 flex items-center">
-                                  <div className="px-2 py-1 bg-muted rounded text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">REC</div>
-                                </div>
-                              </div>
-                              
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                <p className="text-[10px] text-muted-foreground w-full">Current Sequence: <span className="text-accent font-bold">{siteSettings[field.key] || "None"}</span></p>
-                                <button 
-                                  onClick={() => updateField(field.key, "Shift+A")}
-                                  className="text-[10px] bg-muted px-2 py-1 rounded hover:bg-accent hover:text-white transition-colors"
-                                >
-                                  Default (Shift+A)
-                                </button>
-                                <button 
-                                  onClick={() => updateField(field.key, "")}
-                                  className="text-[10px] bg-red-500/10 text-red-500 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition-colors"
-                                >
-                                  Clear
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                   </div>
                 </div>
               </div>
 
               <div className="glass-panel p-8">
+                 {/* Logs remain same */}
                 <div className="flex items-center justify-between mb-8">
                   <div>
                     <h2 className="font-heading text-2xl flex items-center gap-3">
@@ -569,17 +670,6 @@ export function AdminSettingsPage() {
                       Security Logs
                     </h2>
                     <p className="text-sm text-muted-foreground">Recent submission attempts and blocks (last 24h).</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-center px-4">
-                      <div className="text-2xl font-bold text-red-500">{blockedCount24h}</div>
-                      <div className="text-[10px] uppercase font-bold text-muted-foreground">Blocked</div>
-                    </div>
-                    <div className="w-px h-10 bg-border" />
-                    <div className="text-center px-4">
-                      <div className="text-2xl font-bold text-emerald-500">{logs.length - blockedCount24h}</div>
-                      <div className="text-[10px] uppercase font-bold text-muted-foreground">Allowed</div>
-                    </div>
                   </div>
                 </div>
 
@@ -606,21 +696,73 @@ export function AdminSettingsPage() {
             </div>
           ) : activeTab === "activity" ? (
             <div className="space-y-6">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
-                  <h2 className="font-heading text-3xl">Activity History</h2>
-                  <p className="text-muted-foreground">Track all administrative changes and revert if needed.</p>
+                  <h2 className="font-heading text-3xl">System Activity</h2>
+                  <p className="text-muted-foreground text-sm">Comprehensive track of all administrative actions.</p>
                 </div>
-                <button 
-                  onClick={() => void refreshAdminLogs()}
-                  className="p-2 hover:bg-muted rounded-full transition-colors"
-                >
-                  <History className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                   <button 
+                    onClick={() => exportLogs("csv")}
+                    className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-border rounded-xl text-xs font-bold transition-all"
+                  >
+                    <Download className="w-4 h-4" />
+                    CSV
+                  </button>
+                  <button 
+                    onClick={() => exportLogs("json")}
+                    className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-border rounded-xl text-xs font-bold transition-all"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    JSON
+                  </button>
+                  <button 
+                    onClick={() => void refreshAdminLogs()}
+                    className="p-2 hover:bg-muted rounded-full transition-colors ml-2"
+                  >
+                    <History className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                {adminLogs.map((log) => (
+              {/* Activity Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 bg-muted/20 p-4 rounded-2xl border border-border">
+                <div className="relative">
+                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                   <input 
+                    value={searchActivity}
+                    onChange={(e) => setSearchActivity(e.target.value)}
+                    placeholder="Search logs..."
+                    className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl text-xs outline-none focus:ring-1 focus:ring-accent"
+                   />
+                </div>
+                <div className="flex items-center gap-2 p-1 bg-background border border-border rounded-xl overflow-x-auto">
+                  {(["all", "create", "update", "delete"] as const).map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setActivityFilter(type)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                        activityFilter === type ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+                <select 
+                  value={activityEntityFilter}
+                  onChange={(e) => setActivityEntityFilter(e.target.value)}
+                  className="px-4 py-2 bg-background border border-border rounded-xl text-xs outline-none focus:ring-1 focus:ring-accent appearance-none capitalize"
+                >
+                  <option value="all">All Entities</option>
+                  {entityTypes.map(t => (
+                    <option key={t} value={t}>{t.replace("_", " ")}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                {filteredActivity.map((log) => (
                   <motion.div
                     key={log.id}
                     layout
@@ -673,25 +815,14 @@ export function AdminSettingsPage() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => void handleRevert(log.id)}
-                      disabled={isReverting === log.id}
-                      className="flex items-center justify-center gap-2 px-6 py-3 bg-primary/5 hover:bg-primary/10 text-primary rounded-xl font-bold transition-all border border-primary/10 disabled:opacity-50"
-                    >
-                      {isReverting === log.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Undo2 className="w-4 h-4" />
-                      )}
-                      Undo Change
-                    </button>
+                    {/* Undo removed for now */}
                   </motion.div>
                 ))}
                 
-                {adminLogs.length === 0 && (
+                {filteredActivity.length === 0 && (
                   <div className="text-center py-20 bg-muted/20 rounded-3xl border-2 border-dashed border-border">
                     <History className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
-                    <p className="text-muted-foreground font-medium">No activity recorded yet.</p>
+                    <p className="text-muted-foreground font-medium">No activity matching your filters.</p>
                   </div>
                 )}
               </div>
@@ -704,7 +835,7 @@ export function AdminSettingsPage() {
                   <div className="w-12 h-1 bg-accent rounded-full mb-8" />
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {section.fields.map((field) => {
+                    {section.fields.map((field: any) => {
                       const value = siteSettings[field.key] || "";
                       return (
                         <div key={field.key} className={`space-y-2 ${field.multiline || field.isImage ? "md:col-span-2" : ""}`}>
@@ -725,7 +856,7 @@ export function AdminSettingsPage() {
                           
                           {field.isImage ? (
                             <div className="flex items-start gap-6">
-                              <div className="relative group/img w-48 h-32 rounded-2xl bg-muted overflow-hidden border-2 border-dashed border-border hover:border-accent transition-colors flex-shrink-0">
+                              <div className="relative group/img w-48 h-32 rounded-2xl bg-muted overflow-hidden border-2 border-dashed border-border hover:border-accent transition-colors flex-shrink-0 cursor-pointer" onClick={() => setMediaPickerConfig({open: true, key: field.key})}>
                                 {value ? (
                                   <img src={value} className="w-full h-full object-cover" alt={field.label} />
                                 ) : (
@@ -733,14 +864,10 @@ export function AdminSettingsPage() {
                                     <ImageIcon className="w-8 h-8 opacity-20" />
                                   </div>
                                 )}
-                                <label className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer text-white">
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex flex-col items-center justify-center text-white">
                                   <Upload className="w-6 h-6 mb-1" />
-                                  <span className="text-[10px] font-bold uppercase">Upload New</span>
-                                  <input type="file" className="hidden" accept="image/*" onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) void handleImageUpload(field.key, file);
-                                  }} />
-                                </label>
+                                  <span className="text-[10px] font-bold uppercase">Select / Upload</span>
+                                </div>
                               </div>
                               <div className="flex-1 space-y-2">
                                 <input 
@@ -759,6 +886,32 @@ export function AdminSettingsPage() {
                             >
                               <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-all duration-300 transform ${value === "true" ? "translate-x-7" : ""}`} />
                             </button>
+                          ) : field.key === "maintenance_pages" ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+                              {["home", "treks", "gallery", "journal", "contact"].map(page => {
+                                const activePages = (value || "").toLowerCase().split(",").map(p => p.trim()).filter(Boolean);
+                                const isChecked = activePages.includes(page);
+                                return (
+                                  <label key={page} className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${isChecked ? "border-accent bg-accent/5" : "border-border hover:border-accent/50"}`}>
+                                    <input 
+                                      type="checkbox"
+                                      className="w-4 h-4 rounded text-accent"
+                                      checked={isChecked}
+                                      onChange={(e) => {
+                                        let newPages;
+                                        if (e.target.checked) {
+                                          newPages = Array.from(new Set([...activePages, page])).filter(Boolean);
+                                        } else {
+                                          newPages = activePages.filter(p => p !== page);
+                                        }
+                                        updateField(field.key, newPages.join(", "));
+                                      }}
+                                    />
+                                    <span className="text-xs font-bold uppercase tracking-widest capitalize">{page}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
                           ) : field.multiline ? (
                             <textarea 
                               value={value}
@@ -781,26 +934,39 @@ export function AdminSettingsPage() {
                   </div>
                 </div>
               ))}
-
-              {/* Sticky Save Bar */}
-              <div className="sticky bottom-0 bg-background/80 backdrop-blur-xl p-6 rounded-2xl border border-border shadow-2xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  <span className="text-sm text-muted-foreground font-medium">You have unsaved changes</span>
-                </div>
-                <button
-                  onClick={handleSaveSite}
-                  disabled={savingSite}
-                  className="flex items-center gap-3 px-10 py-3.5 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-accent hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
-                >
-                  {savingSite ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                  Publish Changes
-                </button>
-              </div>
             </div>
           )}
+
+
+
         </motion.div>
       </AnimatePresence>
+
+      {/* Sticky Save Bar - Always visible except for activity logs */}
+      {activeTab !== "activity" && (
+        <div className="sticky bottom-8 mt-12 bg-background/80 backdrop-blur-xl p-6 rounded-2xl border border-border shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 z-40">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-sm text-muted-foreground font-medium">You have unsaved changes in {TABS.find(t => t.id === activeTab)?.label}</span>
+          </div>
+          <button
+            onClick={handleSaveSite}
+            disabled={savingSite}
+            className="w-full sm:w-auto flex items-center justify-center gap-3 px-12 py-3.5 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-accent hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
+          >
+            {savingSite ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+            Publish Changes
+          </button>
+        </div>
+      )}
+      <MediaPickerModal 
+        open={mediaPickerConfig.open} 
+        onOpenChange={(open) => setMediaPickerConfig(prev => ({...prev, open}))} 
+        onSelect={(url) => {
+          if (mediaPickerConfig.key) updateField(mediaPickerConfig.key, url);
+        }} 
+        defaultBucket={TREK_IMAGES_BUCKET}
+      />
     </div>
   );
 }

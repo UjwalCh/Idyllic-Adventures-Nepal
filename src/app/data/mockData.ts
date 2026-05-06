@@ -12,7 +12,9 @@ export interface Trek {
   featured: boolean;
   highlights: string[];
   itinerary: { day: number; title: string; description: string }[];
+  sortOrder?: number;
   gallery?: string[];
+  createdAt?: string;
 }
 
 export interface Notice {
@@ -21,6 +23,9 @@ export interface Notice {
   message: string;
   date: string;
   type: "info" | "warning" | "success";
+  targetPage: string;
+  expiresAt?: string | null;
+  createdAt?: string;
 }
 
 export interface JournalEntry {
@@ -223,13 +228,15 @@ export const mockNotices: Notice[] = [
     title: "Spring Season 2026 Bookings Open",
     message: "Book your spring trek now! Special early bird discounts available for bookings made before May 2026.",
     date: "2026-04-20",
-    type: "success"
+    type: "success",
+    targetPage: "all"
   },
   {
     id: "2",
     title: "Updated Travel Guidelines",
     message: "Please check the latest Nepal travel and trekking permit requirements before planning your trip.",
     date: "2026-04-15",
-    type: "info"
+    type: "info",
+    targetPage: "all"
   }
 ];
