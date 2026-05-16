@@ -11,6 +11,7 @@ import {
   Trash2,
   Star,
   GripVertical,
+  Loader2,
 } from "lucide-react";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -65,7 +66,7 @@ const defaultFormState: TrekFormState = {
   bestSeason: "",
   groupSize: "",
   price: "",
-  image: "https://images.unsplash.com/photo-1701255136052-b33f78a886a4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+  image: "",
   featured: false,
   highlightsText: "",
   itineraryText: "",
@@ -123,6 +124,10 @@ export function AdminTreksPage() {
         .map((line) => line.trim())
         .filter(Boolean),
       itinerary,
+      sortOrder: 0,
+      gallery: formState.gallery,
+      videoUrl: formState.videoUrl || null,
+      createdAt: new Date().toISOString(),
     };
   }, [editingTrekId, formState]);
 
@@ -288,6 +293,7 @@ export function AdminTreksPage() {
       }
       setIsFormOpen(false);
     } catch (error) {
+      console.error("Save Trek Error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to save trek");
     } finally {
       setIsSaving(false);
@@ -479,361 +485,328 @@ export function AdminTreksPage() {
         )}
 
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogContent className="w-[96vw] sm:max-w-[96vw] max-w-[96vw] h-[96vh] overflow-hidden p-4 sm:p-6">
-            <DialogHeader>
-              <DialogTitle>{editingTrekId ? "Edit Trek" : "Add New Trek"}</DialogTitle>
-              <DialogDescription>
-                Fill in the trek details, highlights, and itinerary. Changes save directly to Supabase.
+          <DialogContent className="max-w-[95vw] w-full lg:max-w-7xl h-[95vh] lg:h-[90vh] flex flex-col p-4 md:p-6 overflow-hidden rounded-[2rem] border-white/10 bg-card/95 backdrop-blur-2xl shadow-2xl">
+            <DialogHeader className="mb-4">
+              <DialogTitle className="text-2xl font-heading">
+                {editingTrekId ? "Edit Trek Details" : "Add New Trek Experience"}
+              </DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Manage your Himalayan expeditions. Ensure all required fields are accurate for the live site.
               </DialogDescription>
             </DialogHeader>
-
-            <div className="grid h-[calc(96vh-9rem)] min-h-0 gap-5 overflow-hidden lg:grid-cols-[1.15fr_0.85fr]">
-              <div className="min-h-0 overflow-y-auto rounded-xl border border-border bg-card p-4">
-                <section className="rounded-xl border border-border bg-card p-5">
-                  <div className="mb-4 flex items-center gap-2">
-                    <Mountain className="h-4 w-4 text-accent" />
-                    <h3 className="font-heading text-lg">Trek Basics</h3>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="md:col-span-2">
-                      <label className="block text-sm mb-2">Title *</label>
-                      <input
-                        value={formState.title}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, title: e.target.value }))}
-                        className={fieldClassName}
-                        placeholder="Everest Base Camp Trek"
-                      />
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <div className="flex-1 grid gap-6 overflow-hidden lg:grid-cols-[1.15fr_0.85fr] pb-4">
+                <div className="min-h-0 overflow-y-auto rounded-xl border border-border bg-card p-4 custom-scrollbar">
+                  {/* ... Basics Section ... */}
+                  <section className="rounded-xl border border-border bg-card p-5">
+                    <div className="mb-4 flex items-center gap-2">
+                      <Mountain className="h-4 w-4 text-accent" />
+                      <h3 className="font-heading text-lg">Trek Basics</h3>
                     </div>
-
-                    <div className="md:col-span-2">
-                      <label className="block text-sm mb-2">Description *</label>
-                      <textarea
-                        value={formState.description}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
-                        rows={4}
-                        className={`${fieldClassName} resize-none`}
-                        placeholder="Short trek description"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm mb-2">Duration *</label>
-                      <input
-                        value={formState.duration}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, duration: e.target.value }))}
-                        className={fieldClassName}
-                        placeholder="14 Days"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm mb-2">Difficulty *</label>
-                      <Select
-                        value={formState.difficulty}
-                        onValueChange={(value) =>
-                          setFormState((prev) => ({ ...prev, difficulty: value as Trek["difficulty"] }))
-                        }
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select difficulty" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Easy">Easy</SelectItem>
-                          <SelectItem value="Moderate">Moderate</SelectItem>
-                          <SelectItem value="Challenging">Challenging</SelectItem>
-                          <SelectItem value="Strenuous">Strenuous</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm mb-2">Max Altitude *</label>
-                      <input
-                        value={formState.maxAltitude}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, maxAltitude: e.target.value }))}
-                        className={fieldClassName}
-                        placeholder="5,364m / 17,598ft"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm mb-2">Best Season *</label>
-                      <input
-                        value={formState.bestSeason}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, bestSeason: e.target.value }))}
-                        className={fieldClassName}
-                        placeholder="March-May, Sept-Nov"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm mb-2">Group Size *</label>
-                      <input
-                        value={formState.groupSize}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, groupSize: e.target.value }))}
-                        className={fieldClassName}
-                        placeholder="2-12 people"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm mb-2">Price *</label>
-                      <input
-                        value={formState.price}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, price: e.target.value }))}
-                        className={fieldClassName}
-                        placeholder="$1,450 per person"
-                      />
-                    </div>
-                  </div>
-                </section>
-
-                <section className="mt-6 rounded-xl border border-border bg-card p-5">
-                  <div className="mb-4 flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4 text-accent" />
-                    <h3 className="font-heading text-lg">Content Details</h3>
-                  </div>
-                  <div className="grid gap-4">
-                    <div>
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <label className="block text-sm">Image URL *</label>
-                        <button
-                          type="button"
-                          onClick={() => setIsMediaPickerOpen(true)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm hover:bg-muted transition-colors"
-                        >
-                          <ImageUp className="h-4 w-4" />
-                          Select or Upload Media
-                        </button>
-                      </div>
-                      <input
-                        ref={imageInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => void handleDeviceImageUpload(e.target.files?.[0] ?? null)}
-                      />
-                      <div
-                        onDragEnter={() => setIsDropActive(true)}
-                        onDragLeave={() => setIsDropActive(false)}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          setIsDropActive(true);
-                        }}
-                        onDrop={handleDrop}
-                        className={`mb-3 rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors ${
-                          isDropActive
-                            ? "border-accent bg-accent/5"
-                            : "border-border bg-muted/10"
-                        }`}
-                      >
-                        <Upload className="mx-auto mb-2 h-5 w-5 text-accent" />
-                        <p className="text-sm font-medium">Drag and drop an image here</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Or use the upload button above to pick a file from your device.
-                        </p>
-                      </div>
-                      <input
-                        value={formState.image}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, image: e.target.value }))}
-                        className={fieldClassName}
-                        placeholder="https://..."
-                      />
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Use the button to upload an image from your device, or paste a public URL.
-                      </p>
-
-                      <div className="mt-4">
-                        <label className="block text-sm mb-2">Video Trailer URL (YouTube/Vimeo)</label>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="md:col-span-2">
+                        <label className="block text-sm mb-2">Title *</label>
                         <input
-                          value={formState.videoUrl}
-                          onChange={(e) => setFormState((prev) => ({ ...prev, videoUrl: e.target.value }))}
+                          value={formState.title}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, title: e.target.value }))}
                           className={fieldClassName}
-                          placeholder="https://www.youtube.com/watch?v=..."
+                          placeholder="Everest Base Camp Trek"
                         />
                       </div>
-                      {isUploadingImage && (
-                        <div className="mt-3">
-                          <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-                            <span>Uploading image</span>
-                            <span>{uploadProgress}%</span>
-                          </div>
-                          <div className="h-2 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className="h-full rounded-full bg-accent transition-all"
-                              style={{ width: `${Math.max(uploadProgress, 10)}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
 
-                    <div>
-                      <label className="block text-sm mb-2">Highlights</label>
-                      <textarea
-                        value={formState.highlightsText}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, highlightsText: e.target.value }))}
-                        rows={4}
-                        className={`${fieldClassName} resize-none`}
-                        placeholder="One highlight per line"
-                      />
-                    </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm mb-2">Description *</label>
+                        <textarea
+                          value={formState.description}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
+                          rows={4}
+                          className={`${fieldClassName} resize-none`}
+                          placeholder="Short trek description"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block text-sm mb-2">Itinerary</label>
-                      <textarea
-                        value={formState.itineraryText}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, itineraryText: e.target.value }))}
-                        rows={6}
-                        className={`${fieldClassName} resize-none`}
-                        placeholder="Day title | Day description, one line per day"
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
-                      <input
-                        id="featured"
-                        type="checkbox"
-                        checked={formState.featured}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, featured: e.target.checked }))}
-                        className="h-4 w-4"
-                      />
-                      <label htmlFor="featured" className="text-sm">
-                        Mark as featured trek
-                      </label>
-                    </div>
-
-                    <div className="rounded-xl border border-border bg-muted/10 p-5 mt-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <ImageUp className="w-5 h-5 text-accent" />
-                          <h4 className="font-bold">Trek Gallery</h4>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => galleryInputRef.current?.click()}
-                          className="text-xs px-3 py-1.5 bg-accent/10 text-accent rounded-lg hover:bg-accent/20 font-bold"
-                        >
-                          Add Photos
-                        </button>
+                      <div>
+                        <label className="block text-sm mb-2">Duration *</label>
                         <input
-                          ref={galleryInputRef}
-                          type="file"
-                          multiple
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const files = Array.from(e.target.files || []);
-                            toast.loading(`Uploading ${files.length} photos...`);
-                            const urls = await Promise.all(files.map(f => uploadTrekImage(f)));
-                            setFormState(prev => ({ ...prev, gallery: [...prev.gallery, ...urls] }));
-                            toast.dismiss();
-                            toast.success("Gallery updated");
-                          }}
+                          value={formState.duration}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, duration: e.target.value }))}
+                          className={fieldClassName}
+                          placeholder="14 Days"
                         />
                       </div>
-                      <div className="grid grid-cols-4 gap-3">
-                        {formState.gallery.map((url, idx) => (
-                          <div key={idx} className="relative aspect-square rounded-lg overflow-hidden group border border-border">
-                            <img src={url} className="w-full h-full object-cover" />
-                            <button
-                              onClick={() => setFormState(prev => ({ ...prev, gallery: prev.gallery.filter((_, i) => i !== idx) }))}
-                              className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Plus className="w-3 h-3 rotate-45" />
-                            </button>
+
+                      <div>
+                        <label className="block text-sm mb-2">Difficulty *</label>
+                        <Select
+                          value={formState.difficulty}
+                          onValueChange={(value) =>
+                            setFormState((prev) => ({ ...prev, difficulty: value as Trek["difficulty"] }))
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select difficulty" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Easy">Easy</SelectItem>
+                            <SelectItem value="Moderate">Moderate</SelectItem>
+                            <SelectItem value="Challenging">Challenging</SelectItem>
+                            <SelectItem value="Strenuous">Strenuous</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm mb-2">Max Altitude *</label>
+                        <input
+                          value={formState.maxAltitude}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, maxAltitude: e.target.value }))}
+                          className={fieldClassName}
+                          placeholder="5,364m / 17,598ft"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm mb-2">Best Season *</label>
+                        <input
+                          value={formState.bestSeason}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, bestSeason: e.target.value }))}
+                          className={fieldClassName}
+                          placeholder="March-May, Sept-Nov"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm mb-2">Group Size *</label>
+                        <input
+                          value={formState.groupSize}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, groupSize: e.target.value }))}
+                          className={fieldClassName}
+                          placeholder="2-12 people"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm mb-2">Price *</label>
+                        <input
+                          value={formState.price}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, price: e.target.value }))}
+                          className={fieldClassName}
+                          placeholder="$1,450 per person"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* ... Content Details ... */}
+                  <section className="mt-6 rounded-xl border border-border bg-card p-5">
+                    <div className="mb-4 flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-accent" />
+                      <h3 className="font-heading text-lg">Content Details</h3>
+                    </div>
+                    <div className="grid gap-4">
+                      <div>
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <label className="block text-sm">Image URL *</label>
+                          <button
+                            type="button"
+                            onClick={() => setIsMediaPickerOpen(true)}
+                            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm hover:bg-muted transition-colors"
+                          >
+                            <ImageUp className="h-4 w-4" />
+                            Select or Upload Media
+                          </button>
+                        </div>
+                        <input
+                          value={formState.image}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, image: e.target.value }))}
+                          className={fieldClassName}
+                          placeholder="https://..."
+                        />
+
+                        <div className="mt-4">
+                          <label className="block text-sm mb-2">Video Trailer URL (YouTube/Vimeo)</label>
+                          <input
+                            value={formState.videoUrl}
+                            onChange={(e) => setFormState((prev) => ({ ...prev, videoUrl: e.target.value }))}
+                            className={fieldClassName}
+                            placeholder="https://www.youtube.com/watch?v=..."
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm mb-2">Highlights (one per line)</label>
+                        <textarea
+                          value={formState.highlightsText}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, highlightsText: e.target.value }))}
+                          rows={4}
+                          className={`${fieldClassName} resize-none`}
+                          placeholder="Breathtaking views of Everest&#10;Visit to Tengboche Monastery"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm mb-2">Itinerary (Day title | Description)</label>
+                        <textarea
+                          value={formState.itineraryText}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, itineraryText: e.target.value }))}
+                          rows={6}
+                          className={`${fieldClassName} resize-none`}
+                          placeholder="Day 1: Arrival | Transfer to hotel&#10;Day 2: Trek Start | Walk to Lukla"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+                        <input
+                          id="featured"
+                          type="checkbox"
+                          checked={formState.featured}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, featured: e.target.checked }))}
+                          className="h-4 w-4"
+                        />
+                        <label htmlFor="featured" className="text-sm">
+                          Mark as featured trek
+                        </label>
+                      </div>
+
+                      {/* Gallery */}
+                      <div className="rounded-xl border border-border bg-muted/10 p-5 mt-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <ImageUp className="w-5 h-5 text-accent" />
+                            <h4 className="font-bold">Trek Gallery</h4>
                           </div>
-                        ))}
+                          <button
+                            type="button"
+                            onClick={() => galleryInputRef.current?.click()}
+                            className="text-xs px-3 py-1.5 bg-accent/10 text-accent rounded-lg hover:bg-accent/20 font-bold"
+                          >
+                            Add Photos
+                          </button>
+                          <input
+                            ref={galleryInputRef}
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const files = Array.from(e.target.files || []);
+                              toast.loading(`Uploading ${files.length} photos...`);
+                              const urls = await Promise.all(files.map(f => uploadTrekImage(f)));
+                              setFormState(prev => ({ ...prev, gallery: [...prev.gallery, ...urls] }));
+                              toast.dismiss();
+                              toast.success("Gallery updated");
+                            }}
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 gap-3">
+                          {formState.gallery.map((url, idx) => (
+                            <div key={idx} className="relative aspect-square rounded-lg overflow-hidden group border border-border">
+                              <img src={url} className="w-full h-full object-cover" />
+                              <button
+                                onClick={() => setFormState(prev => ({ ...prev, gallery: prev.gallery.filter((_, i) => i !== idx) }))}
+                                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Plus className="w-3 h-3 rotate-45" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+
+                <aside className="min-h-0 overflow-y-auto rounded-xl border border-border bg-card p-4 custom-scrollbar">
+                  <div className="mb-3 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-accent" />
+                    <h3 className="font-heading text-lg">Live Preview</h3>
+                  </div>
+
+                  <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-md">
+                    <div className="relative h-[20rem] xl:h-[22rem]">
+                      <img src={livePreview.image} alt={livePreview.title} className="h-full w-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 text-white text-sm">
+                        <span>{livePreview.duration}</span>
+                        <span>{livePreview.difficulty}</span>
+                      </div>
+                    </div>
+                    <div className="p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <h4 className="font-heading text-2xl leading-tight">{livePreview.title}</h4>
+                        {livePreview.featured && (
+                          <span className="rounded-full bg-accent/15 px-2 py-1 text-xs text-accent">Featured</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{livePreview.description}</p>
+                      <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                        <div className="rounded-lg bg-muted/40 p-2">
+                          <div className="mb-1 uppercase tracking-wide">Altitude</div>
+                          <div className="text-foreground">{livePreview.maxAltitude}</div>
+                        </div>
+                        <div className="rounded-lg bg-muted/40 p-2">
+                          <div className="mb-1 uppercase tracking-wide">Season</div>
+                          <div className="text-foreground">{livePreview.bestSeason}</div>
+                        </div>
+                        <div className="rounded-lg bg-muted/40 p-2">
+                          <div className="mb-1 uppercase tracking-wide">Group</div>
+                          <div className="text-foreground">{livePreview.groupSize}</div>
+                        </div>
+                        <div className="rounded-lg bg-muted/40 p-2">
+                          <div className="mb-1 uppercase tracking-wide">Price</div>
+                          <div className="text-foreground">{livePreview.price}</div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </section>
+
+                  <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
+                    <h4 className="mb-2 text-sm font-semibold">Highlights</h4>
+                    {livePreview.highlights.length ? (
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        {livePreview.highlights.map((item, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-accent" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Add highlights line by line.</p>
+                    )}
+                  </div>
+                </aside>
               </div>
 
-              <aside className="min-h-0 overflow-y-auto rounded-xl border border-border bg-card p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-accent" />
-                  <h3 className="font-heading text-lg">Live Preview</h3>
-                </div>
-
-                <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-md">
-                  <div className="relative h-[20rem] xl:h-[22rem]">
-                    <img src={livePreview.image} alt={livePreview.title} className="h-full w-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 text-white text-sm">
-                      <span>{livePreview.duration}</span>
-                      <span>{livePreview.difficulty}</span>
-                    </div>
-                  </div>
-                  <div className="p-4 space-y-2">
-                    <div className="flex items-start justify-between gap-3">
-                      <h4 className="font-heading text-2xl leading-tight">{livePreview.title}</h4>
-                      {livePreview.featured && (
-                        <span className="rounded-full bg-accent/15 px-2 py-1 text-xs text-accent">Featured</span>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">{livePreview.description}</p>
-                    <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
-                      <div className="rounded-lg bg-muted/40 p-2">
-                        <div className="mb-1 uppercase tracking-wide">Altitude</div>
-                        <div className="text-foreground">{livePreview.maxAltitude}</div>
-                      </div>
-                      <div className="rounded-lg bg-muted/40 p-2">
-                        <div className="mb-1 uppercase tracking-wide">Season</div>
-                        <div className="text-foreground">{livePreview.bestSeason}</div>
-                      </div>
-                      <div className="rounded-lg bg-muted/40 p-2">
-                        <div className="mb-1 uppercase tracking-wide">Group</div>
-                        <div className="text-foreground">{livePreview.groupSize}</div>
-                      </div>
-                      <div className="rounded-lg bg-muted/40 p-2">
-                        <div className="mb-1 uppercase tracking-wide">Price</div>
-                        <div className="text-foreground">{livePreview.price}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
-                  <h4 className="mb-2 text-sm font-semibold">Highlights</h4>
-                  {livePreview.highlights.length ? (
-                    <ul className="space-y-2 text-sm text-muted-foreground">
-                      {livePreview.highlights.map((item) => (
-                        <li key={item} className="flex gap-2">
-                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-accent" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
+              <DialogFooter className="sticky bottom-0 bg-card border-t border-border pt-4 px-2 flex-col sm:flex-row gap-3 z-50">
+                <button
+                  type="button"
+                  onClick={() => setIsFormOpen(false)}
+                  className="w-full px-6 py-3 rounded-xl border border-border hover:bg-muted transition-all font-bold sm:w-auto"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveTreksForm()}
+                  disabled={isSaving}
+                  className="w-full px-8 py-3 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 transition-all font-bold disabled:opacity-60 sm:w-auto flex items-center justify-center gap-2 shadow-lg shadow-accent/20"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Saving...</span>
+                    </>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Add highlights line by line to see them here.</p>
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{editingTrekId ? "Update Trek" : "Create Trek"}</span>
+                    </>
                   )}
-                </div>
-
-                <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
-                  <h4 className="mb-2 text-sm font-semibold">Image Source</h4>
-                  <p className="text-sm text-muted-foreground break-all">{formState.image}</p>
-                </div>
-              </aside>
+                </button>
+              </DialogFooter>
             </div>
-
-            <DialogFooter className="flex-col sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setIsFormOpen(false)}
-                className="w-full px-4 py-2 rounded-lg border border-border hover:bg-muted transition-colors sm:w-auto"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void saveTreksForm()}
-                disabled={isSaving}
-                className="w-full px-4 py-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent/90 transition-colors disabled:opacity-60 sm:w-auto"
-              >
-                {isSaving ? "Saving..." : editingTrekId ? "Update Trek" : "Create Trek"}
-              </button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
 

@@ -10,14 +10,11 @@ export function TreksPage() {
   const { settings } = useSiteSettings();
   const { treks } = useTreks();
 
-  // Scroll Velocity Skew Effect
-  const { scrollY } = useScroll();
-  const scrollVelocity = useVelocity(scrollY);
-  const skewVelocity = useSpring(scrollVelocity, {
-    stiffness: 100,
-    damping: 30
-  });
-  const skew = useTransform(skewVelocity, [-3000, 3000], [-5, 5]);
+  const [filter, setFilter] = useState("All");
+
+  const filteredTreks = treks.filter(trek => 
+    filter === "All" || trek.difficulty === filter
+  );
 
   return (
     <div className="min-h-screen">
@@ -48,15 +45,32 @@ export function TreksPage() {
         </div>
       </section>
 
-      <section className="pb-12 md:pb-20 relative pt-4 md:pt-8">
+      <section className="py-12 md:py-16">
         <div className="container mx-auto px-4 lg:px-8">
+          {/* Filters Bar */}
+          <div className="flex flex-wrap justify-center gap-4 mb-16">
+            {["All", "Easy", "Moderate", "Challenging", "Difficult"].map((difficulty) => (
+              <button
+                key={difficulty}
+                onClick={() => setFilter(difficulty)}
+                className={`px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all border ${
+                  filter === difficulty
+                    ? "bg-primary text-primary-foreground border-primary shadow-xl shadow-primary/20 scale-105"
+                    : "bg-muted/50 text-muted-foreground border-border/50 hover:bg-muted hover:border-border"
+                }`}
+              >
+                {difficulty}
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 lg:gap-12">
-            {treks.map((trek, index) => (
+            {filteredTreks.map((trek, index) => (
               <ThreeDTrekCard key={trek.id} trek={trek} index={index} />
             ))}
           </div>
 
-          {treks.length === 0 && (
+          {filteredTreks.length === 0 && (
             <div className="text-center py-16">
               <p className="text-muted-foreground text-lg">No treks found.</p>
             </div>

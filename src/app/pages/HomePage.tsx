@@ -10,6 +10,10 @@ import { HimalayanMist } from "../components/ui/HimalayanMist";
 import { StackedTrekCards } from "../components/ui/StackedTrekCards";
 import { MountainDivider } from "../components/ui/MountainDivider";
 import { ScrollPath } from "../components/ui/ScrollPath";
+import { ValuesMarquee } from "../components/ui/ValuesMarquee";
+import Magnetic from "../components/ui/Magnetic";
+import { GuideShowcase } from "../components/ui/GuideShowcase";
+import { FloatingPromo } from "../components/ui/FloatingPromo";
 
 export function HomePage() {
   const { treks } = useTreks();
@@ -19,31 +23,37 @@ export function HomePage() {
   const marqueeX = useSpring(useTransform(scrollYProgress, [0, 1], ["0%", "-50%"]), { stiffness: 50, damping: 20 });
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen relative overflow-x-hidden transform-gpu">
       <HimalayanMist />
+      
+      {/* Background Blobs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-20 dark:opacity-10">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/20 blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[20%] right-[-5%] w-[30%] h-[30%] bg-secondary/20 blur-[100px] rounded-full" />
+      </div>
 
       <motion.div
-        initial={{ opacity: 0, scale: 1.05, filter: "blur(20px)" }}
-        animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-        transition={{ duration: 1.8, ease: [0.76, 0, 0.24, 1], delay: 0.1 }}
+        initial={{ opacity: 0, scale: 1.02 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1.2, ease: "easeOut" }}
       >
         <ParallaxHero
           badge={settings.home_hero_badge || "Explore the Himalayas"}
           title={
-            <div className="flex flex-col gap-0 md:gap-2">
+            <div className="flex flex-col items-center">
               <motion.span 
-                initial={{ opacity: 0, y: 30, filter: "blur(10px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{ duration: 1, delay: 0.8 }}
-                className="font-heading text-4xl md:text-7xl lg:text-8xl leading-tight block font-black tracking-tight"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.8 }}
+                className="text-white font-heading text-4xl md:text-[5rem] lg:text-[6rem] leading-none block drop-shadow-2xl"
               >
                 {settings.home_hero_title_line1 || "Discover Your"}
               </motion.span>
               <motion.span 
-                initial={{ opacity: 0, y: 30, filter: "blur(10px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 1 }}
-                className="text-secondary italic font-heading text-5xl md:text-8xl lg:text-[9rem] leading-[0.9] block drop-shadow-xl"
+                className="text-secondary italic font-heading text-5xl md:text-[5rem] lg:text-[6rem] leading-[1.1] block drop-shadow-2xl"
               >
                 {settings.home_hero_title_line2 || "Idyllic Adventure"}
               </motion.span>
@@ -52,29 +62,52 @@ export function HomePage() {
           subtitle={settings.home_hero_description || "Trek through the world's highest mountains with a dedicated local trek leader. Create memories that last a lifetime."}
           image={settings.home_hero_image || "https://images.unsplash.com/photo-1690122601365-77d6ee21e998?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxMHx8TmVwYWwlMjBIaW1hbGF5YXMlMjBtb3VudGFpbnMlMjBFdmVyZXN0JTIwdHJla3xlbnwxfHx8fDE3NzY5Mjk4NDR8MA&ixlib=rb-4.1.0&q=80&w=1080"}
         >
-        <div className="flex flex-wrap justify-center gap-4">
-          <Link
-            to="/treks"
-            className="group px-8 py-4 bg-secondary hover:bg-secondary/90 text-slate-900 rounded-lg transition-all flex items-center gap-2 shadow-lg hover:shadow-secondary/20 font-bold"
-          >
-            <span>Explore Treks</span>
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </Link>
-          <Link
-            to="/contact?type=inquiry&source=home-hero-contact"
-            onClick={() => {
-              void trackWebsiteEvent("cta_click", "home-hero-contact");
-            }}
-            className="px-8 py-4 bg-white hover:bg-white/90 text-slate-900 rounded-lg transition-all border border-white/20 shadow-lg font-bold"
-          >
-            Contact Us
-          </Link>
+        <div className="flex flex-wrap justify-center gap-6">
+          <Magnetic strength={0.3}>
+            <Link
+              to="/treks"
+              className="group px-10 py-5 bg-secondary hover:bg-secondary/90 text-slate-900 rounded-2xl transition-all flex items-center gap-3 shadow-2xl hover:shadow-secondary/30 font-black uppercase tracking-tight text-sm"
+            >
+              <span>Explore Treks</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </Magnetic>
+          <Magnetic strength={0.2}>
+            <a
+              href="#contact"
+              className="px-10 py-5 bg-white/10 hover:bg-white text-white hover:text-slate-900 rounded-2xl transition-all border border-white/20 backdrop-blur-md shadow-xl font-black uppercase tracking-tight text-sm flex items-center"
+            >
+              Contact Us
+            </a>
+          </Magnetic>
         </div>
       </ParallaxHero>
       </motion.div>
       <MountainDivider color="var(--background)" />
+      
+      <FloatingPromo 
+        image={settings.home_promo_image}
+        title={settings.home_promo_title}
+        description={settings.home_promo_description}
+        feat1={settings.home_promo_feat1}
+        feat2={settings.home_promo_feat2}
+        feat3={settings.home_promo_feat3}
+      />
+      
+      {settings.home_guide_display !== "false" && (
+        <GuideShowcase 
+          image={settings.about_guide_image}
+          label={settings.about_guide_label}
+          name={settings.about_guide_name}
+          role={settings.about_guide_role}
+          saying={settings.about_guide_saying}
+          tags={settings.guide_expertise_tags}
+        />
+      )}
 
-      <section className="py-12 md:py-20 bg-background relative z-10 -mt-10 md:-mt-20 transform-gpu">
+      <ValuesMarquee content={settings.home_marquee_text} />
+
+      <section className="py-8 md:py-16 bg-background relative z-10 transform-gpu">
         <div className="container mx-auto px-4 lg:px-8">
           <motion.div 
             initial="hidden"
@@ -118,7 +151,7 @@ export function HomePage() {
                 <div className="font-heading text-5xl mb-2 text-primary relative z-10">
                   <LiveCounter targetValue={stat.value} />
                 </div>
-                <div className="text-xs text-muted-foreground uppercase tracking-[0.3em] font-bold relative z-10">{stat.label}</div>
+                <div className="text-[13px] font-black text-muted-foreground uppercase tracking-[0.3em] relative z-10">{stat.label}</div>
               </motion.div>
             ))}
           </motion.div>
@@ -128,13 +161,12 @@ export function HomePage() {
       <MountainDivider color="rgba(241, 245, 249, 0.2)" flip />
 
       <motion.section 
-        initial={{ opacity: 0, filter: "blur(10px)" }}
-        whileInView={{ opacity: 1, filter: "blur(0px)" }}
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
         viewport={{ once: true, amount: 0.1 }}
-        transition={{ duration: 1.2 }}
+        transition={{ duration: 0.8 }}
         className="py-12 md:py-20 bg-muted/20 relative transform-gpu overflow-hidden"
       >
-        {/* Horizontal Scroll Marquee */}
         <div className="absolute top-20 left-0 w-full overflow-hidden pointer-events-none select-none opacity-10 dark:opacity-5">
           <motion.div 
             style={{ 
@@ -142,7 +174,7 @@ export function HomePage() {
               WebkitTextStroke: "1px var(--muted-foreground)", 
               fill: "transparent" 
             }}
-            className="whitespace-nowrap font-black text-[12rem] md:text-[20rem] leading-none text-muted-foreground transform-gpu will-change-transform"
+            className="whitespace-nowrap font-black text-[4rem] md:text-[6rem] leading-none text-muted-foreground transform-gpu will-change-transform"
           >
             EXPLORE THE HIMALAYAS • ADVENTURE AWAITS • DISCOVER NEPAL • 
           </motion.div>
@@ -167,7 +199,7 @@ export function HomePage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.1 }}
             transition={{ duration: 1, ease: "easeOut" }}
-            className="relative py-12 md:py-20"
+            className="relative w-full max-w-7xl mx-auto min-h-[35rem] md:min-h-[45rem] flex items-center justify-center mt-4 mb-16 overflow-visible transform-gpu"
           >
             <StackedTrekCards treks={featuredTreks} />
           </motion.div>
@@ -191,7 +223,61 @@ export function HomePage() {
 
       <MountainDivider color="#020617" />
 
-      <section className="relative py-32 md:py-52 overflow-hidden text-white transform-gpu">
+      <section id="contact" className="py-24 bg-background relative z-10">
+        <div className="container mx-auto px-4 lg:px-8">
+          <div className="max-w-4xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-16"
+            >
+              <h2 className="font-heading text-5xl mb-4">Frequently Asked Questions</h2>
+              <p className="text-muted-foreground text-lg">Everything you need to know about trekking with Idyllic Adventures.</p>
+            </motion.div>
+
+            <div className="space-y-4">
+              {(() => {
+                const faqData = settings.faqs;
+                let faqs = [];
+                try {
+                  faqs = typeof faqData === 'string' ? JSON.parse(faqData) : (Array.isArray(faqData) ? faqData : []);
+                } catch (e) {
+                  faqs = [];
+                }
+                
+                return (faqs.length > 0 ? faqs : [
+                  { q: "What is the best time to trek in Nepal?", a: "The best times are Spring (March to May) for flowers and Moderate weather, and Autumn (September to November) for the clearest mountain views." },
+                  { q: "Do I need travel insurance?", a: "Yes, comprehensive travel insurance that specifically covers emergency helicopter evacuation at high altitudes (above 5,000m) is mandatory for all our treks." },
+                  { q: "How difficult are the treks?", a: "We offer everything from easy cultural walks to challenging high-pass expeditions. Each trek page has a difficulty rating to help you choose the right one for your fitness level." },
+                  { q: "What is included in the price?", a: "Typically, our prices include all permits, professional guide and porter services, teahouse accommodation, and all meals during the trek. Check individual trek pages for specifics." }
+                ]).map((faq: any, i: number) => (
+                  <motion.details
+                    key={i}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 }}
+                    className="group bg-card border border-border/50 rounded-3xl overflow-hidden transition-all hover:border-accent/30"
+                  >
+                    <summary className="flex items-center justify-between p-8 cursor-pointer list-none">
+                      <span className="text-lg font-heading font-bold">{faq.q}</span>
+                      <span className="transition-transform duration-300 group-open:rotate-45">
+                        <ArrowRight className="w-6 h-6 text-accent rotate-90" />
+                      </span>
+                    </summary>
+                    <div className="px-8 pb-8 text-muted-foreground leading-relaxed">
+                      {faq.a}
+                    </div>
+                  </motion.details>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative min-h-[100dvh] md:h-[100dvh] overflow-hidden flex items-center justify-center py-20 md:py-0">
         {/* Background Image with Layered Parallax */}
         <div className="absolute inset-0 z-0">
           <motion.img 
@@ -209,10 +295,10 @@ export function HomePage() {
         <div className="container mx-auto px-4 lg:px-8 relative z-10">
           <div className="max-w-5xl mx-auto text-center">
             <motion.div
-              initial={{ opacity: 0, y: 50, filter: "blur(10px)" }}
-              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 1, delay: 0.3 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
             >
               <h2 className="font-heading text-5xl md:text-9xl mb-10 md:mb-14 leading-tight tracking-tight drop-shadow-2xl">
                 {settings.home_cta_title || "Your Himalayan Story Starts Here"}

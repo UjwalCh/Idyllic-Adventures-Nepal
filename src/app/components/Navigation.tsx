@@ -1,10 +1,9 @@
 import { Link, useLocation } from "react-router";
-import { Mountain, Menu, X, BookOpen, Image, Sun, Moon } from "lucide-react";
+import { Mountain, Menu, X, BookOpen, Image, Sun, Moon, MessageCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSiteSettings } from "../data/useRealtimeData";
 import { useTheme } from "next-themes";
-import { getCurrentSession, subscribeToAuthChanges } from "../data/auth";
 import { useNavigate } from "react-router";
 import Magnetic from "./ui/Magnetic";
 
@@ -14,15 +13,12 @@ export function Navigation() {
   const { settings } = useSiteSettings();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
-  // Secret Sequence Listener (e.g. "ADMIN" or custom)
   const [keyBuffer, setKeyBuffer] = useState("");
   
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 1. Ignore if typing in an input
       const activeEl = document.activeElement as HTMLElement;
       const isTyping = activeEl && (
         activeEl.tagName === "INPUT" || 
@@ -31,16 +27,14 @@ export function Navigation() {
       );
       if (isTyping) return;
 
-      // 2. Secret Sequence Logic
       const newBuffer = (keyBuffer + e.key.toUpperCase()).slice(-10);
       setKeyBuffer(newBuffer);
 
-      // 3. Hotkey Logic (Only if not typing)
       if (settings.admin_hotkeys) {
-        const keys = settings.admin_hotkeys.split("+").map(k => k.trim().toLowerCase());
+        const keys = settings.admin_hotkeys.split("+").map((k: string) => k.trim().toLowerCase());
         const isShift = keys.includes("shift");
         const isCtrl = keys.includes("ctrl") || keys.includes("control");
-        const targetKey = keys.find(k => !["shift", "ctrl", "control", "alt"].includes(k));
+        const targetKey = keys.find((k: string) => !["shift", "ctrl", "control", "alt"].includes(k));
 
         const matchShift = isShift ? e.shiftKey : true;
         const matchCtrl = isCtrl ? (e.ctrlKey || e.metaKey) : true;
@@ -50,12 +44,8 @@ export function Navigation() {
           e.preventDefault();
           navigate("/managepage");
         }
-      } else if (e.shiftKey && e.key === "A") {
-        e.preventDefault();
-        navigate("/managepage");
       }
 
-      // Check for secret word sequence (Fallback/Custom)
       if (newBuffer.endsWith("ADMIN")) {
         navigate("/managepage");
       }
@@ -67,121 +57,153 @@ export function Navigation() {
 
   useEffect(() => {
     setMounted(true);
-    void getCurrentSession().then(session => setIsAdmin(!!session));
-    
-    const unsubscribe = subscribeToAuthChanges((session) => {
-      setIsAdmin(!!session);
+  }, []);
+
+  const [activeSection, setActiveSection] = useState("");
+
+  useEffect(() => {
+    const observerOptions = {
+      root: null,
+      rootMargin: "-20% 0px -60% 0px",
+      threshold: 0
+    };
+
+    const handleIntersect = (entries: IntersectionObserverEntry[]) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          if (id) setActiveSection(id);
+        }
+      });
+    };
+
+    const observer = new IntersectionObserver(handleIntersect, observerOptions);
+    const sections = ["hero", "treks", "journal", "gallery", "about", "contact"];
+    sections.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
     });
-    return unsubscribe;
+
+    return () => observer.disconnect();
   }, []);
 
   const navLinks = [
-    { path: "/", label: "Home" },
-    { path: "/treks", label: "Treks" },
-    { path: "/journal", label: "Journal", icon: BookOpen },
-    { path: "/gallery", label: "Gallery", icon: Image },
-    { path: "/about", label: "About" },
-    { path: "/contact", label: "Contact" },
+    { path: "/", label: "Home", id: "hero" },
+    { path: "/treks", label: "Treks", id: "treks" },
+    { path: "/journal", label: "Journal", icon: BookOpen, id: "journal" },
+    { path: "/gallery", label: "Gallery", icon: Image, id: "gallery" },
+    { path: "/about", label: "About", id: "about" },
+    { path: "/contact", label: "Contact", id: "contact" },
   ];
 
-  return (
-    <>
-      <motion.header
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="glass-navbar border-b border-white/5 transform-gpu"
-      >
-        <div className="container mx-auto px-4 lg:px-8">
-          <div className="flex items-center justify-between h-16 md:h-20">
-            <Magnetic strength={0.2}>
-              <Link 
-                to="/" 
-                onDoubleClick={() => navigate("/managepage")}
-                className="flex items-center gap-3 group"
-              >
-                <div className="flex items-center justify-center overflow-hidden w-12 h-12 md:w-20 md:h-20 transition-transform duration-500 group-hover:scale-105">
-                  <AnimatePresence mode="wait">
-                    {settings.site_logo ? (
-                      <motion.img
-                        key="logo-img"
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        src={settings.site_logo}
-                        alt="Logo"
-                        className="w-full h-full object-contain"
-                      />
-                    ) : (
-                      <motion.div
-                        key="logo-loading"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 0.1 }}
-                        className="w-10 h-10 bg-primary/20 rounded-full animate-pulse"
-                      />
-                    )}
-                  </AnimatePresence>
-                </div>
-                <div>
-                  <div className="font-heading text-lg md:text-2xl tracking-tighter text-primary font-black leading-none">
-                    Idyllic Adventures
-                  </div>
-                  <div className="text-[8px] md:text-[10px] text-muted-foreground font-black tracking-[0.3em] uppercase opacity-60">NEPAL</div>
-                </div>
-              </Link>
-            </Magnetic>
+  const [isScrolled, setIsScrolled] = useState(false);
 
-            <nav className="hidden md:flex items-center gap-6 md:gap-8">
-              {navLinks.map((link) => (
-                <Magnetic key={link.path} strength={0.3}>
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  return (
+    <motion.header
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className={`fixed top-0 left-0 right-0 z-[150] transition-all duration-500 ${
+        isScrolled 
+          ? "bg-background/90 backdrop-blur-2xl py-0.5 shadow-2xl border-b border-border/50" 
+          : "bg-background/80 backdrop-blur-xl py-2 border-b border-border/10"
+      }`}
+    >
+      <div className="container mx-auto px-4 lg:px-8">
+        <div className="flex items-center justify-between h-16 md:h-20">
+          <Magnetic strength={0.2}>
+            <Link to="/" className="flex items-center gap-2 md:gap-4 group">
+              <div className="flex items-center justify-center overflow-hidden w-12 h-12 md:w-16 md:h-16 transition-transform duration-500 group-hover:scale-105 shrink-0">
+                <AnimatePresence mode="wait">
+                  {settings.site_logo ? (
+                    <motion.img
+                      key="logo-img"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      src={settings.site_logo}
+                      alt="Logo"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <motion.div
+                      key="logo-loading"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 0.1 }}
+                      className="w-8 h-8 bg-primary/20 rounded-full animate-pulse"
+                    />
+                  )}
+                </AnimatePresence>
+              </div>
+              <div className="flex flex-col">
+                <div className="font-heading text-lg md:text-2xl tracking-tighter text-primary font-black leading-none mb-0.5">
+                  Idyllic Adventures
+                </div>
+                <div className="text-[9px] md:text-[10px] text-muted-foreground font-black tracking-[0.4em] uppercase opacity-60">NEPAL</div>
+              </div>
+            </Link>
+          </Magnetic>
+
+          <div className="hidden md:flex flex-1 items-center justify-end gap-x-8 lg:gap-x-12 pr-8">
+            {navLinks.map((link) => (
+              <div 
+                key={link.path}
+                className="relative"
+              >
+                <Magnetic strength={0.3}>
                   <Link
                     to={link.path}
-                    className={`relative py-2 px-2 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase transition-all duration-300 group ${
-                      location.pathname === link.path
+                    className={`relative py-2 px-1 text-[13px] font-black tracking-[0.2em] uppercase transition-all duration-300 group ${
+                      location.pathname === link.path || activeSection === link.id
                         ? "text-accent"
                         : "text-foreground hover:text-accent"
                     }`}
                   >
                     <span className="relative z-10">{link.label}</span>
-                    {location.pathname === link.path && (
+                    {(location.pathname === link.path || activeSection === link.id) && (
                       <motion.div
                         layoutId="nav-indicator"
-                        className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-secondary to-accent rounded-full"
+                        className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-8 h-1.5 bg-gradient-to-r from-blue-500 to-orange-500 rounded-full shadow-[0_2px_10px_rgba(59,130,246,0.5)]"
                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
                       />
                     )}
-                    <span className="absolute inset-0 bg-gradient-to-r from-secondary/10 to-accent/10 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-lg" />
                   </Link>
                 </Magnetic>
-              ))}
-              {mounted && (
-                <Magnetic strength={0.4}>
-                  <button
-                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                    className="p-3 hover:bg-muted rounded-full transition-all"
-                    aria-label="Toggle theme"
-                  >
-                    {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                  </button>
-                </Magnetic>
-              )}
 
-            </nav>
-
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 hover:bg-muted rounded-xl transition-all"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
-              )}
-            </button>
+              </div>
+            ))}
           </div>
-        </div>
-      </motion.header>
 
+          <div className="hidden md:flex items-center">
+            {mounted && (
+              <Magnetic strength={0.4}>
+                <button
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className="p-2 hover:bg-muted rounded-full transition-all"
+                  aria-label="Toggle theme"
+                >
+                  {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+              </Magnetic>
+            )}
+          </div>
+
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 hover:bg-muted rounded-xl transition-all"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+      </div>
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
@@ -202,37 +224,13 @@ export function Navigation() {
                       : "hover:bg-white/10"
                   }`}
                 >
-                  {link.icon && <link.icon className="w-5 h-5 opacity-70" />}
                   <span className="font-heading text-xl">{link.label}</span>
                 </Link>
               ))}
-              <hr className="border-white/10 my-2" />
-              <div className="flex items-center justify-between gap-4">
-                {mounted && (
-                  <button
-                    onClick={() => {
-                      setTheme(theme === "dark" ? "light" : "dark");
-                      setMobileMenuOpen(false);
-                    }}
-                    className="flex-1 py-4 px-6 bg-muted/50 rounded-2xl flex items-center justify-center gap-3 font-bold"
-                  >
-                    {theme === "dark" ? (
-                      <>
-                        <Sun className="w-5 h-5" /> <span>Light Mode</span>
-                      </>
-                    ) : (
-                      <>
-                        <Moon className="w-5 h-5" /> <span>Dark Mode</span>
-                      </>
-                    )}
-                  </button>
-                )}
-
-              </div>
             </nav>
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </motion.header>
   );
 }

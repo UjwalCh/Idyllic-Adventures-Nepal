@@ -55,7 +55,7 @@ export function RootLayout() {
       {/* Preloader stays on top until it exits itself */}
       <Preloader onComplete={() => setShowContent(true)} />
       
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {showContent && (
           <motion.div 
             key="main-content"
@@ -72,7 +72,7 @@ export function RootLayout() {
             <WebsiteAnalyticsTracker />
             
             <motion.div
-              className="fixed top-0 left-0 right-0 h-2 bg-gradient-to-r from-accent to-secondary z-[1000] origin-left shadow-[0_0_20px_rgba(245,158,11,0.8)] pointer-events-none"
+              className="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-accent via-white to-accent z-[9999] origin-left shadow-[0_2px_15px_rgba(245,158,11,0.6)] pointer-events-none"
               style={{ scaleX: smoothProgress }}
             />
             
@@ -108,10 +108,10 @@ export function RootLayout() {
               <Outlet />
             </main>
             <Footer />
-            <FloatingAction />
           </motion.div>
         )}
       </AnimatePresence>
+      <FloatingAction />
       <Toaster position="top-right" />
     </ThemeProvider>
   );

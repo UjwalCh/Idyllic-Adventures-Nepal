@@ -16,8 +16,9 @@ import {
   type SpamConfig,
   type AdminLog,
   type AdminActivityLog,
+  supabase,
 } from "../../data/supabaseData";
-import { useAdminLogs } from "../../data/useRealtimeData";
+import { useAdminActivityLogs } from "../../data/useRealtimeData";
 import { 
   Upload, 
   Loader2, 
@@ -36,43 +37,40 @@ import {
   Image as ImageIcon,
   Settings,
   Undo2,
-  Layout as LayoutIcon,
   MapPin,
   Facebook,
   Instagram,
   Youtube,
   Twitter,
   AlertCircle,
-  Lock,
   Download,
-  Trash2, 
   Plus, 
   Search, 
   BookOpen,
-  Database
+  Users
 } from "lucide-react";
+
+const DEFAULT_FAQS = [
+  { q: "What is the best time to visit Nepal?", a: "The best times are spring (March to May) and autumn (September to November) for the clearest skies and best trekking conditions." },
+  { q: "Do I need a visa for Nepal?", a: "Yes, most nationalities require a visa. You can get a visa on arrival at Kathmandu airport or apply at a Nepalese consulate abroad." },
+  { q: "Is trekking in Nepal safe?", a: "Yes, trekking is generally very safe. We provide experienced guides, proper equipment, and handle all logistics to ensure your safety." },
+  { q: "What should I pack for a trek?", a: "Key items include trekking boots, warm layers, a good sleeping bag, sun protection, and a basic first aid kit. We provide a detailed packing list." }
+];
 import { MediaPickerModal } from "../../components/ui/MediaPickerModal";
 
 const TABS = [
-  { id: "general", label: "General & Brand", icon: Info },
+  { id: "general", label: "Branding & Contact", icon: Globe },
   { id: "home", label: "Home Page", icon: Layout },
-  { id: "about", label: "About & Guide", icon: Info },
+  { id: "about", label: "About Page", icon: BookOpen },
+  { id: "guide", label: "Team & Founder", icon: Users },
   { id: "other", label: "Other Pages", icon: Layout },
-  { id: "seo", label: "SEO & Meta", icon: Globe },
+  { id: "seo", label: "SEO & Social", icon: Search },
+  { id: "faqs", label: "FAQs Management", icon: Info },
   { id: "security", label: "Security & System", icon: ShieldCheck },
   { id: "activity", label: "Admin Activity", icon: History },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
-
-interface SettingField {
-  key: string;
-  label: string;
-  placeholder?: string;
-  multiline?: boolean;
-  isImage?: boolean;
-  isToggle?: boolean;
-}
 
 const SITE_SETTING_CATEGORIES = [
   {
@@ -138,6 +136,18 @@ const SITE_SETTING_CATEGORIES = [
         ]
       },
       {
+        title: "Promotional Section",
+        fields: [
+          { key: "home_promo_image", label: "Promo Background Image", isImage: true },
+          { key: "home_promo_title", label: "Section Title", placeholder: "e.g. Local Expertise, Global Standards" },
+          { key: "home_promo_description", label: "Description / Philosophy", multiline: true },
+          { key: "home_promo_feat1", label: "Feature 1 Label", placeholder: "e.g. Bespoke Itineraries" },
+          { key: "home_promo_feat2", label: "Feature 2 Label", placeholder: "e.g. Safety Certified" },
+          { key: "home_promo_feat3", label: "Feature 3 Label", placeholder: "e.g. Local Communities" },
+          { key: "home_marquee_text", label: "Values Marquee Content", placeholder: "e.g. Bespoke Itineraries • Eco-Conscious Travel" },
+        ]
+      },
+      {
         title: "Sections & CTA",
         fields: [
           { key: "home_featured_title", label: "Featured Section Title" },
@@ -151,35 +161,80 @@ const SITE_SETTING_CATEGORIES = [
   },
   {
     id: "about",
-    category: "About Page & Guide",
+    category: "About Page Content",
     sections: [
       {
-        title: "Hero & Story",
+        title: "Hero Section",
         fields: [
           { key: "about_hero_image", label: "About Hero Image", isImage: true },
           { key: "about_hero_title", label: "Hero Title" },
           { key: "about_hero_description", label: "Hero Description", multiline: true },
+        ]
+      },
+      {
+        title: "Our Story",
+        fields: [
           { key: "about_story_title", label: "Story Title" },
           { key: "about_story_description", label: "Our Story Text", multiline: true },
           { key: "about_story_image", label: "Story Image", isImage: true },
         ]
       },
       {
-        title: "Values Section",
+        title: "Company Values",
         fields: [
-          { key: "about_values_title", label: "Values Title" },
-          { key: "about_values_subtitle", label: "Values Subtitle", multiline: true },
+          { key: "about_values_title", label: "Values Section Title" },
+          { key: "about_values_subtitle", label: "Values Section Subtitle", multiline: true },
+        ]
+      }
+    ]
+  },
+  {
+    id: "guide",
+    category: "Team & Founder Profile",
+    sections: [
+      {
+        title: "Founder Details",
+        fields: [
+          { key: "about_guide_image", label: "Founder Photo", isImage: true },
+          { key: "about_guide_name", label: "Full Name" },
+          { key: "about_guide_role", label: "Official Role" },
+          { key: "about_guide_label", label: "Badge / Small Title", placeholder: "e.g. Founder & Lead" },
         ]
       },
       {
-        title: "Meet the Guide",
+        title: "Professional Profile",
         fields: [
-          { key: "about_guide_title", label: "Guide Section Heading" },
-          { key: "about_guide_subtitle", label: "Section Subheading", multiline: true },
-          { key: "about_guide_image", label: "Guide Photo", isImage: true },
-          { key: "about_guide_name", label: "Full Name" },
-          { key: "about_guide_role", label: "Role / Title" },
-          { key: "about_guide_experience", label: "Experience Details" },
+          { key: "about_guide_experience", label: "Experience Summary" },
+          { key: "about_guide_saying", label: "Founder's Quote", multiline: true },
+          { key: "guide_expertise_tags", label: "Expertise Tags (Separate with •)", placeholder: "e.g. 15+ Peaks Mastered • Wilderness First Aid" },
+        ]
+      },
+      {
+        title: "Display Options",
+        fields: [
+          { key: "home_guide_display", label: "Show Founder Profile on Home Page", isToggle: true },
+        ]
+      }
+    ]
+  },
+  {
+    id: "other",
+    category: "Other Pages",
+    sections: [
+      {
+        title: "Treks Page",
+        fields: [
+          { key: "treks_hero_image", label: "Treks Hero Image", isImage: true },
+          { key: "treks_hero_title", label: "Hero Title" },
+          { key: "treks_hero_description", label: "Hero Description", multiline: true },
+        ]
+      },
+      {
+        title: "Contact Page",
+        fields: [
+          { key: "contact_hero_image", label: "Contact Hero Image", isImage: true },
+          { key: "contact_hero_title", label: "Hero Title" },
+          { key: "contact_hero_description", label: "Hero Description", multiline: true },
         ]
       }
     ]
@@ -191,9 +246,9 @@ const SITE_SETTING_CATEGORIES = [
       {
         title: "Site-wide SEO",
         fields: [
-          { key: "seo_title", label: "Main Site Title", placeholder: "e.g. Idyllic Adventures Nepal - Trekking Specialists" },
-          { key: "seo_description", label: "Meta Description", multiline: true, placeholder: "Describe your site for Google search results..." },
-          { key: "seo_keywords", label: "Keywords", placeholder: "trekking, nepal, himalayas, adventure" },
+          { key: "seo_title", label: "Main Site Title", placeholder: "e.g. Idyllic Adventures Nepal" },
+          { key: "seo_description", label: "Meta Description", multiline: true },
+          { key: "seo_keywords", label: "Keywords", placeholder: "trekking, nepal, adventure" },
           { key: "seo_share_image", label: "Social Media Share Image", isImage: true },
         ]
       }
@@ -208,137 +263,114 @@ const SITE_SETTING_CATEGORIES = [
         fields: [
           { key: "admin_hotkeys", label: "Secret Hotkeys", placeholder: "e.g. Shift+A" },
           { key: "maintenance_mode", label: "Global Maintenance Mode", isToggle: true },
-          { key: "maintenance_pages", label: "Pages Under Maintenance (Granular)" }
         ]
       },
       {
-        title: "Spam Protection",
+        title: "Backup & Recovery",
         fields: [
-          { key: "spam_sensitivity", label: "Sensitivity Level", placeholder: "low, medium, high" },
-        ]
-      }
-    ]
-  },
-  {
-    id: "other",
-    category: "Other Pages",
-    sections: [
-      {
-        title: "Contact Page",
-        fields: [
-          { key: "contact_hero_image", label: "Contact Hero Image", isImage: true },
-          { key: "contact_hero_title", label: "Hero Title" },
-          { key: "contact_hero_description", label: "Hero Description", multiline: true },
-        ]
-      },
-      {
-        title: "Treks Page",
-        fields: [
-          { key: "treks_hero_image", label: "Treks Hero Image", isImage: true },
-          { key: "treks_hero_title", label: "Hero Title" },
-          { key: "treks_hero_description", label: "Hero Description", multiline: true },
-        ]
-      },
-      {
-        title: "Journal Page",
-        fields: [
-          { key: "journal_hero_image", label: "Journal Hero Image", isImage: true },
-          { key: "news_paused", label: "Pause Journal / News Section", isToggle: true },
+          { key: "last_backup_at", label: "Last System Backup", disabled: true },
         ]
       }
     ]
   }
 ];
 
-// Provide defaults so the UI is never blank
 const DEFAULT_SITE_SETTINGS: Record<string, string> = {
+  // General & Branding
   nav_brand_name: "Idyllic Adventures",
   nav_brand_tagline: "Explore. Experience. Enjoy.",
+  site_logo: "",
   location: "Kathmandu, Nepal",
+  phone_1: "+977-9841234567",
   email_main: "chapagaiujwal@gmail.com",
-  phone_1: "+977 1234567890",
+  footer_description: "Professional trekking service run by a dedicated local guide with 15+ years of experience in the Himalayas.",
+  
+  // Home Hero
   home_hero_image: "https://images.unsplash.com/photo-1690122601365-77d6ee21e998?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
   home_hero_badge: "Explore the Himalayas",
   home_hero_title_line1: "Discover Your",
   home_hero_title_line2: "Idyllic Adventure",
   home_hero_description: "Trek through the world's highest mountains with a dedicated local trek leader. Create memories that last a lifetime.",
+  
+  // Home Stats
+  home_stats_years_label: "Years of Trek Leadership",
   home_stats_years: "15+",
+  home_stats_trekkers_label: "Happy Trekkers",
   home_stats_trekkers: "2,500+",
+  home_stats_guides_label: "Expert Guides",
   home_stats_guides: "14+",
+  home_stats_safety_label: "Safety First",
+  home_stats_safety: "100%",
+
+  // Home Promotional Section
+  home_promo_image: "https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&q=80&w=1200",
+  home_promo_title: "Local Expertise, Global Standards",
+  home_promo_description: "With over 15 years of experience leading expeditions across the Himalayas, we provide an unparalleled journey through the heart of Nepal.",
+  home_promo_feat1: "Bespoke Itineraries",
+  home_promo_feat2: "Safety Certified",
+  home_promo_feat3: "Local Communities",
+  home_marquee_text: "Bespoke Itineraries • Eco-Conscious Travel • Safety Certified • Local Cultural Expertise",
+
+  // Home Featured & CTA
   home_featured_title: "Featured Treks",
   home_featured_subtitle: "Handpicked adventures for the ultimate Himalayan experience",
   home_cta_title: "Your Himalayan Story Starts Here",
   home_cta_description: "Contact me today to start planning your bespoke journey. I will guide you through every pass and valley of the majestic Himalayas.",
   home_cta_button_label: "Begin Your Adventure",
-  about_hero_title: "Our Story",
-  about_guide_name: "Ujwal Chhetri",
-  about_guide_role: "Lead Guide",
-  seo_title: "Idyllic Adventures Nepal",
-  admin_hotkeys: "Shift+A",
-  enquiry_notifications_enabled: "true",
-  enquiry_email: "chapagaiujwal@gmail.com",
-};
 
-type SubmissionLog = {
-  id: string;
-  ip_address: string;
-  flagged: boolean;
-  spam_reason: string | null;
-  created_at: string;
+  // Guide Information (Home & About)
+  home_guide_display: "true",
+  about_guide_image: "https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&q=80&w=800",
+  about_guide_label: "Founder & Lead",
+  about_guide_name: "Mr. Narayan Prasad Chapagain",
+  about_guide_role: "Expert Expedition Leader",
+  about_guide_experience: "20+ years of Himalayan trekking experience",
+  about_guide_saying: "The mountains are not just peaks to be conquered, but teachers to be respected.",
+  guide_expertise_tags: "15+ Peaks Mastered • Wilderness First Aid • 20+ Years Experience • Local Cultural Expert",
+
+  // About Page Hero & Story
+  about_hero_image: "https://images.unsplash.com/photo-1544735716-392fe2489ffa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+  about_hero_title: "About Idyllic Adventures",
+  about_hero_description: "A personal trekking service run by one dedicated local guide",
+  about_story_title: "My Story",
+  about_story_description: "Founded in 2010, Idyllic Adventures Nepal was built from a personal passion for the Himalayas and a desire to share their magnificence with fellow trekkers.",
+  about_story_image: "https://images.unsplash.com/photo-1701255136052-b33f78a886a4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+  about_values_title: "My Values",
+  about_values_subtitle: "The principles that guide every trek I organize",
+  about_guide_title: "Meet Your Guide",
+  about_guide_subtitle: "A dedicated local trek leader focused on making your journey unforgettable",
+
+  // Treks Page Hero
+  treks_hero_image: "https://images.unsplash.com/photo-1544735716-392fe2489ffa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+  treks_hero_title: "Himalayan Treks",
+  treks_hero_description: "Explore my handpicked collection of the finest treks in Nepal.",
+
+  // Contact Page Hero
+  contact_hero_image: "https://images.unsplash.com/photo-1544735716-392fe2489ffa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+  contact_hero_title: "Contact Me",
+  contact_hero_description: "Ready to start your adventure? Reach out and I'll get back to you shortly.",
+
+  // SEO & Security
+  seo_title: "Idyllic Adventures Nepal",
+  seo_description: "Experience the ultimate Himalayan adventure with a dedicated local guide.",
+  seo_keywords: "trekking, nepal, adventure, himalayas, guide",
+  maintenance_mode: "false",
 };
 
 export function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const [loading, setLoading] = useState(true);
   const [savingSite, setSavingSite] = useState(false);
-  const [savingSpam, setSavingSpam] = useState(false);
-
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({});
   const [spamConfig, setSpamConfig] = useState<SpamConfig | null>(null);
   const [keywordInput, setKeywordInput] = useState("");
-  const [logs, setLogs] = useState<SubmissionLog[]>([]);
-  const { logs: adminLogs, refresh: refreshAdminLogs } = useAdminLogs(50);
-  const [isReverting, setIsReverting] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [logs, setLogs] = useState<any[]>([]);
+  const { logs: adminLogs, refresh: refreshAdminLogs } = useAdminActivityLogs(100);
   const [mediaPickerConfig, setMediaPickerConfig] = useState<{open: boolean, key: string | null}>({open: false, key: null});
   
   const [searchActivity, setSearchActivity] = useState("");
   const [activityFilter, setActivityFilter] = useState<"all" | "create" | "update" | "delete">("all");
   const [activityEntityFilter, setActivityEntityFilter] = useState<string>("all");
-
-  const filteredActivity = useMemo(() => {
-    return adminLogs.filter(log => {
-      const matchesSearch = !searchActivity || 
-        log.details?.toLowerCase().includes(searchActivity.toLowerCase()) ||
-        log.entity_type.toLowerCase().includes(searchActivity.toLowerCase());
-      
-      const matchesAction = activityFilter === "all" || log.action_type === activityFilter;
-      const matchesEntity = activityEntityFilter === "all" || log.entity_type === activityEntityFilter;
-      
-      return matchesSearch && matchesAction && matchesEntity;
-    });
-  }, [adminLogs, searchActivity, activityFilter, activityEntityFilter]);
-
-  const entityTypes = useMemo(() => {
-    const types = new Set(adminLogs.map(l => l.entity_type));
-    return Array.from(types);
-  }, [adminLogs]);
-
-  const exportLogs = (format: "csv" | "json") => {
-    if (format === "json") {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(adminLogs, null, 2));
-      const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute("href",     dataStr);
-      downloadAnchorNode.setAttribute("download", `activity_logs_${new Date().toISOString()}.json`);
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
-    } else {
-      exportToCSV(adminLogs, "activity-logs");
-    }
-  };
-
-  const blockedCount24h = useMemo(() => logs.filter((item) => item.flagged).length, [logs]);
 
   const loadAll = async () => {
     setLoading(true);
@@ -348,61 +380,59 @@ export function AdminSettingsPage() {
         getSpamConfig(),
       ]);
 
-      // Merge defaults with loaded data (ignore empty strings from DB)
       const mergedSettings = { ...DEFAULT_SITE_SETTINGS };
       Object.entries(settingsData || {}).forEach(([key, val]) => {
         if (val) mergedSettings[key] = val;
       });
-      setSiteSettings(mergedSettings);
+      
+      // Parse FAQs if they are stored as string or handle default
+      let parsedFaqs = [];
+      if (typeof mergedSettings.faqs === 'string' && mergedSettings.faqs.trim() !== '') {
+        try {
+          parsedFaqs = JSON.parse(mergedSettings.faqs);
+        } catch (e) {
+          parsedFaqs = [...DEFAULT_FAQS];
+        }
+      } else if (Array.isArray(mergedSettings.faqs)) {
+        parsedFaqs = mergedSettings.faqs;
+      } else {
+        parsedFaqs = [...DEFAULT_FAQS];
+      }
+      
+      setSiteSettings({ ...mergedSettings, faqs: parsedFaqs });
       setSpamConfig(spamData);
-      if (spamData && spamData.blocked_keywords) {
-        setKeywordInput(spamData.blocked_keywords.join(", "));
-      }
+      if (spamData?.blocked_keywords) setKeywordInput(spamData.blocked_keywords.join(", "));
 
-      // Load logs separately so they don't block the settings UI if they fail
-      try {
-        const logsData = await fetchSubmissionLogs(24);
-        setLogs(logsData as SubmissionLog[]);
-      } catch (logError) {
-        console.warn("Failed to load submission logs:", logError);
-        setLogs([]);
-      }
+      const logsData = await fetchSubmissionLogs(24);
+      setLogs(logsData);
     } catch (error) {
-      console.error("Failed to load settings:", error);
       toast.error("Failed to load settings");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    void loadAll();
-  }, []);
+  useEffect(() => { void loadAll(); }, []);
 
   const updateField = (key: string, value: string) => {
     setSiteSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleImageUpload = async (key: string, file: File) => {
-    try {
-      toast.loading("Uploading image...", { id: "upload" });
-      const publicUrl = await uploadImage(file, TREK_IMAGES_BUCKET);
-      updateField(key, publicUrl);
-      toast.success("Image uploaded!", { id: "upload" });
-    } catch (err) {
-      toast.error("Upload failed", { id: "upload" });
-    }
-  };
-
   const handleSaveSite = async () => {
     setSavingSite(true);
     try {
-      // If we are in security tab, we might also want to save spam config
-      if (activeTab === "security") {
-        await handleSaveSpam();
+      if (activeTab === "security" && spamConfig) {
+        const keywords = keywordInput.split(",").map(k => k.trim()).filter(Boolean);
+        await updateSpamConfig({ ...spamConfig, blocked_keywords: keywords });
       }
       
-      await updateSiteSettings(siteSettings);
+      // Stringify FAQs for database storage
+      const settingsToSave = { ...siteSettings };
+      if (Array.isArray(settingsToSave.faqs)) {
+        settingsToSave.faqs = JSON.stringify(settingsToSave.faqs);
+      }
+      
+      await updateSiteSettings(settingsToSave);
       toast.success("Settings updated successfully!");
     } catch (error) {
       toast.error("Failed to save changes");
@@ -411,44 +441,48 @@ export function AdminSettingsPage() {
     }
   };
 
-  const handleDownloadBackup = async () => {
-    try {
-      toast.loading("Preparing backup...");
-      await downloadSiteBackup();
-      toast.dismiss();
-      toast.success("Backup downloaded!");
-    } catch (err) {
-      toast.error("Backup failed");
-    }
-  };
-
-  const handleSaveSpam = async () => {
-    if (!spamConfig) return;
-    setSavingSpam(true);
-    try {
-      const keywords = keywordInput.split(",").map((item) => item.trim()).filter(Boolean);
-      await updateSpamConfig({ ...spamConfig, blocked_keywords: keywords });
-      toast.success("Security settings updated");
-      await loadAll();
-    } catch (error) {
-      toast.error("Failed to save security settings");
-    } finally {
-      setSavingSpam(false);
-    }
-  };
-
-  const handleRevert = async (logId: string) => {
-    setIsReverting(logId);
+  const handleUndo = async (logId: string) => {
     try {
       await revertAdminAction(logId);
       toast.success("Action reverted successfully!");
-      await Promise.all([loadAll(), refreshAdminLogs()]);
+      void refreshAdminLogs();
+      void loadAll();
     } catch (error) {
-      toast.error("Failed to revert action");
-    } finally {
-      setIsReverting(null);
+      toast.error(error instanceof Error ? error.message : "Failed to revert action");
     }
   };
+
+  const handleClearLogs = async () => {
+    if (!confirm("Are you sure you want to clear all activity history? This cannot be undone.")) return;
+    try {
+      await supabase?.from("admin_activity_logs").delete().neq("id", "");
+      await supabase?.from("admin_logs").delete().neq("id", "");
+      toast.success("History cleared");
+      void refreshAdminLogs();
+    } catch (error) {
+      toast.error("Failed to clear history");
+    }
+  };
+
+  const formatDetails = (details: string) => {
+    // If it's a long list of comma separated technical keys, simplify it
+    if (details.includes(",") && details.length > 100) {
+      return "Updated multiple site configuration fields";
+    }
+    // Remove technical prefixes if they exist
+    return details.replace("Updated site settings: ", "Updated: ");
+  };
+
+  const filteredActivity = useMemo(() => {
+    return adminLogs.filter((log: AdminActivityLog) => {
+      const matchesSearch = !searchActivity || log.details?.toLowerCase().includes(searchActivity.toLowerCase());
+      const matchesAction = activityFilter === "all" || log.actionType === activityFilter;
+      const matchesEntity = activityEntityFilter === "all" || log.entityType === activityEntityFilter;
+      return matchesSearch && matchesAction && matchesEntity;
+    });
+  }, [adminLogs, searchActivity, activityFilter, activityEntityFilter]);
+
+  const entityTypes = useMemo(() => Array.from(new Set(adminLogs.map((l: AdminActivityLog) => l.entityType))), [adminLogs]);
 
   if (loading) {
     return (
@@ -459,514 +493,280 @@ export function AdminSettingsPage() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-        <div>
-          <div className="flex items-center gap-2 text-accent text-xs font-bold uppercase tracking-[0.2em] mb-2">
-            <Settings className="w-4 h-4" />
-            Configuration
-          </div>
-          <h1 className="font-heading text-5xl text-primary mb-2">Settings</h1>
-          <p className="text-muted-foreground">Customize your website content, branding, and security with live preview.</p>
+    <div className="flex flex-col lg:flex-row min-h-screen bg-background relative">
+      <aside className="w-full lg:w-64 border-r border-border bg-card/50 backdrop-blur-md p-6 overflow-y-auto lg:sticky lg:top-0 lg:h-screen">
+        <div className="flex items-center gap-2 text-accent text-[10px] font-black uppercase tracking-[0.3em] mb-8">
+          <Settings className="w-4 h-4" />
+          System Control
         </div>
-        {activeTab !== "activity" && (
-          <div className="flex flex-col sm:flex-row items-center gap-4">
+        <nav className="space-y-1">
+          {TABS.map((tab) => (
             <button
-              onClick={handleSaveSite}
-              disabled={savingSite}
-              className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-4 bg-primary text-primary-foreground rounded-2xl font-bold hover:bg-accent hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all shadow-2xl shadow-primary/20 disabled:opacity-50"
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                activeTab === tab.id 
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02]" 
+                  : "text-muted-foreground hover:text-primary hover:bg-muted"
+              }`}
             >
-              {savingSite ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-              <span className="text-lg">Apply All Changes</span>
+              <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? "text-accent" : ""}`} />
+              {tab.label}
+              {activeTab === tab.id && <ChevronRight className="ml-auto w-4 h-4" />}
             </button>
+          ))}
+        </nav>
+      </aside>
+
+      <main className="flex-1 pb-32 overflow-x-hidden">
+        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border p-6 md:px-12 flex items-center justify-between shadow-sm">
+          <div>
+            <h1 className="font-heading text-3xl text-primary">{TABS.find(t => t.id === activeTab)?.label}</h1>
+            <p className="text-xs text-muted-foreground">Manage your {activeTab} content and configurations.</p>
           </div>
-        )}
-      </div>
+          <div className="flex items-center gap-4">
+            <button onClick={() => void loadAll()} className="p-3 hover:bg-muted rounded-full transition-colors group" title="Refresh/Reload">
+              <History className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            </button>
+            {activeTab !== "activity" && (
+              <button 
+                onClick={handleSaveSite} 
+                disabled={savingSite} 
+                className="flex items-center gap-3 px-8 py-3 bg-primary text-primary-foreground rounded-2xl font-black text-xs hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 shadow-lg shadow-primary/20"
+              >
+                {savingSite ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save Changes
+              </button>
+            )}
+          </div>
+        </header>
 
-      {/* Tabs Navigation */}
-      <div className="flex items-center gap-2 p-1.5 bg-muted/50 rounded-2xl mb-8 overflow-x-auto no-scrollbar">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === tab.id 
-                ? "bg-primary text-primary-foreground shadow-sm" 
-                : "text-muted-foreground hover:text-primary hover:bg-muted"
-            }`}
-          >
-            <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? "text-accent" : ""}`} />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -10 }}
-          transition={{ duration: 0.2 }}
-        >
-          {activeTab === "security" ? (
-            <div className="space-y-8">
-              <div className="glass-panel p-8">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h2 className="font-heading text-2xl">Advanced System Controls</h2>
-                    <p className="text-sm text-muted-foreground">Manage high-level security and system behavior.</p>
-                  </div>
-                  <button
-                    onClick={handleDownloadBackup}
-                    className="flex items-center gap-3 px-8 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-accent hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl"
-                  >
-                    <Download className="w-5 h-5" />
-                    One-Click Backup
-                  </button>
-                </div>
-
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-                  <div className="space-y-6">
-                    <h3 className="font-bold text-lg border-b pb-2">Spam Engine Config</h3>
-                    {spamConfig && (
-                      <div className="grid grid-cols-1 gap-4">
-                        {[
-                          { key: "enabled", label: "Enable Spam Scoring" },
-                          { key: "use_honeypot", label: "Use Honeypot Trap" },
-                          { key: "check_disposable_emails", label: "Block Temp Emails" },
-                          { key: "check_url_limit", label: "Enforce URL Limit" },
-                        ].map((opt) => (
-                          <label key={opt.key} className="flex items-center gap-4 p-4 rounded-2xl border border-border hover:border-accent transition-colors cursor-pointer group">
-                            <input
-                              type="checkbox"
-                              className="w-5 h-5 rounded-md border-border text-accent focus:ring-accent"
-                              checked={(spamConfig as any)[opt.key]}
-                              onChange={(e) => setSpamConfig({ ...spamConfig, [opt.key]: e.target.checked })}
-                            />
-                            <span className="font-medium group-hover:text-primary transition-colors">{opt.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-6">
-                    <h3 className="font-bold text-lg border-b pb-2">System Access</h3>
-                    <div className="space-y-4">
-                      {SITE_SETTING_CATEGORIES.find(c => c.id === "security")?.sections.map(section => 
-                        section.fields.map((field: any) => (
-                          <div key={field.key} className="space-y-2">
-                             <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{field.label}</label>
-                             {field.isToggle ? (
-                               <div className="flex items-center justify-between p-4 rounded-2xl border border-border">
-                                 <span className="text-sm font-medium">Toggle {field.label}</span>
-                                 <button 
-                                    onClick={() => updateField(field.key, siteSettings[field.key] === "true" ? "false" : "true")}
-                                    className={`relative w-12 h-6 rounded-full transition-colors ${siteSettings[field.key] === "true" ? "bg-accent" : "bg-muted"}`}
-                                  >
-                                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${siteSettings[field.key] === "true" ? "translate-x-6" : ""}`} />
-                                  </button>
-                               </div>
-                             ) : field.key === "admin_hotkeys" ? (
-                                <div className="relative group">
-                                  <input 
-                                    readOnly
-                                    value={siteSettings[field.key] || ""}
-                                    placeholder="Click to record hotkey..."
-                                    onKeyDown={(e) => {
-                                      e.preventDefault();
-                                      const keys = [];
-                                      if (e.ctrlKey) keys.push("Ctrl");
-                                      if (e.shiftKey) keys.push("Shift");
-                                      if (e.altKey) keys.push("Alt");
-                                      if (e.metaKey) keys.push("Meta");
-                                      
-                                      const key = e.key;
-                                      if (!["Control", "Shift", "Alt", "Meta"].includes(key)) {
-                                        keys.push(key.toUpperCase());
-                                        updateField(field.key, keys.join("+"));
-                                      }
-                                    }}
-                                    className="w-full px-4 py-3 bg-muted/30 border border-border rounded-xl font-mono text-center outline-none focus:border-accent transition-all cursor-pointer"
-                                  />
-                                </div>
-                             ) : field.key === "maintenance_pages" ? (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
-                                  {["home", "treks", "gallery", "journal", "contact"].map(page => {
-                                    const activePages = (siteSettings[field.key] || "").toLowerCase().split(",").map(p => p.trim()).filter(Boolean);
-                                    const isChecked = activePages.includes(page);
-                                    return (
-                                      <label key={page} className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${isChecked ? "border-accent bg-accent/5" : "border-border hover:border-accent/50"}`}>
-                                        <input 
-                                          type="checkbox"
-                                          className="w-4 h-4 rounded text-accent"
-                                          checked={isChecked}
-                                          onChange={(e) => {
-                                            let newPages;
-                                            if (e.target.checked) {
-                                              newPages = Array.from(new Set([...activePages, page])).filter(Boolean);
-                                            } else {
-                                              newPages = activePages.filter(p => p !== page);
-                                            }
-                                            updateField(field.key, newPages.join(", "));
-                                          }}
-                                        />
-                                        <span className="text-xs font-bold uppercase tracking-widest capitalize">{page}</span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                             ) : (
-                               <input 
-                                  value={siteSettings[field.key] || ""}
-                                  onChange={(e) => updateField(field.key, e.target.value)}
-                                  className="w-full px-4 py-3 bg-muted/30 border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-accent"
-                                />
-                             )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-8 border-t border-border">
-                   <h3 className="font-bold text-lg mb-6">Security Fine-tuning</h3>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="block text-sm font-bold">Blocked Keywords</label>
-                        <textarea
-                          value={keywordInput}
-                          onChange={(e) => setKeywordInput(e.target.value)}
-                          className="w-full p-4 rounded-2xl border border-border bg-input-background focus:ring-2 focus:ring-accent outline-none min-h-[120px] resize-none"
-                          placeholder="e.g. crypto, casino, help"
-                        />
-                      </div>
-                      {spamConfig && (
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <label className="block text-sm font-bold">Max URLs per message</label>
-                            <input
-                              type="number"
-                              value={spamConfig.max_urls_allowed}
-                              onChange={(e) => setSpamConfig({ ...spamConfig, max_urls_allowed: Number(e.target.value) })}
-                              className="w-full p-4 rounded-2xl border border-border bg-input-background focus:ring-2 focus:ring-accent outline-none"
-                            />
-                          </div>
-                        </div>
-                      )}
-                   </div>
-                </div>
-              </div>
-
-              <div className="glass-panel p-8">
-                 {/* Logs remain same */}
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h2 className="font-heading text-2xl flex items-center gap-3">
-                      <History className="w-6 h-6 text-accent" />
-                      Security Logs
-                    </h2>
-                    <p className="text-sm text-muted-foreground">Recent submission attempts and blocks (last 24h).</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                  {logs.map((log) => (
-                    <div key={log.id} className="flex items-center justify-between p-4 rounded-2xl border border-border bg-muted/20">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-2 h-2 rounded-full ${log.flagged ? "bg-red-500 animate-pulse" : "bg-emerald-500"}`} />
-                        <div>
-                          <div className="font-bold text-sm">IP: {log.ip_address}</div>
-                          <div className="text-[10px] text-muted-foreground">{new Date(log.created_at).toLocaleString()}</div>
-                        </div>
-                      </div>
-                      {log.spam_reason && (
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-red-500/70">{log.spam_reason}</div>
-                      )}
-                    </div>
-                  ))}
-                  {logs.length === 0 && (
-                    <div className="text-center py-12 text-muted-foreground italic">No logs found for the last 24 hours.</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : activeTab === "activity" ? (
-            <div className="space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                <div>
-                  <h2 className="font-heading text-3xl">System Activity</h2>
-                  <p className="text-muted-foreground text-sm">Comprehensive track of all administrative actions.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                   <button 
-                    onClick={() => exportLogs("csv")}
-                    className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-border rounded-xl text-xs font-bold transition-all"
-                  >
-                    <Download className="w-4 h-4" />
-                    CSV
-                  </button>
-                  <button 
-                    onClick={() => exportLogs("json")}
-                    className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-border rounded-xl text-xs font-bold transition-all"
-                  >
-                    <BookOpen className="w-4 h-4" />
-                    JSON
-                  </button>
-                  <button 
-                    onClick={() => void refreshAdminLogs()}
-                    className="p-2 hover:bg-muted rounded-full transition-colors ml-2"
-                  >
-                    <History className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Activity Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 bg-muted/20 p-4 rounded-2xl border border-border">
-                <div className="relative">
-                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                   <input 
-                    value={searchActivity}
-                    onChange={(e) => setSearchActivity(e.target.value)}
-                    placeholder="Search logs..."
-                    className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl text-xs outline-none focus:ring-1 focus:ring-accent"
-                   />
-                </div>
-                <div className="flex items-center gap-2 p-1 bg-background border border-border rounded-xl overflow-x-auto">
-                  {(["all", "create", "update", "delete"] as const).map(type => (
-                    <button
-                      key={type}
-                      onClick={() => setActivityFilter(type)}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                        activityFilter === type ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-                <select 
-                  value={activityEntityFilter}
-                  onChange={(e) => setActivityEntityFilter(e.target.value)}
-                  className="px-4 py-2 bg-background border border-border rounded-xl text-xs outline-none focus:ring-1 focus:ring-accent appearance-none capitalize"
-                >
-                  <option value="all">All Entities</option>
-                  {entityTypes.map(t => (
-                    <option key={t} value={t}>{t.replace("_", " ")}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                {filteredActivity.map((log) => (
-                  <motion.div
-                    key={log.id}
-                    layout
-                    className="glass-panel p-6 flex flex-col md:flex-row md:items-center justify-between gap-6"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className={`p-3 rounded-2xl ${
-                        log.action_type === "create" ? "bg-emerald-500/10 text-emerald-500" :
-                        log.action_type === "delete" ? "bg-red-500/10 text-red-500" :
-                        "bg-blue-500/10 text-blue-500"
-                      }`}>
-                        {log.action_type === "create" ? <ImageIcon className="w-6 h-6" /> :
-                         log.action_type === "delete" ? <AlertCircle className="w-6 h-6" /> :
-                         <Layout className="w-6 h-6" />}
-                      </div>
+        <div className="p-6 md:p-12">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {activeTab === "faqs" ? (
+                <div className="space-y-8">
+                  <div className="glass-panel p-8">
+                    <div className="flex items-center justify-between mb-8">
                       <div>
-                        <div className="font-bold text-lg capitalize">{log.action_type} {log.entity_type.replace("_", " ")}</div>
-                        <p className="text-sm text-muted-foreground mb-3">{log.details}</p>
-                        
-                        {/* Diff Viewer */}
-                        {log.action_type === "update" && log.previous_data && log.new_data && (
-                          <div className="space-y-2 mb-3 bg-muted/30 p-4 rounded-2xl border border-border/50">
-                            {Object.entries(log.new_data as Record<string, any>).map(([key, newValue]) => {
-                              const oldValue = (log.previous_data as Record<string, any>)[key];
-                              if (oldValue === newValue || (oldValue === undefined && !newValue)) return null;
-                              
-                              // Handle complex objects like highlights or itinerary
-                              const displayOld = typeof oldValue === "object" ? JSON.stringify(oldValue).slice(0, 50) + "..." : oldValue;
-                              const displayNew = typeof newValue === "object" ? JSON.stringify(newValue).slice(0, 50) + "..." : newValue;
-
-                              return (
-                                <div key={key} className="text-xs grid grid-cols-1 sm:grid-cols-[100px_1fr] gap-2">
-                                  <span className="font-bold text-muted-foreground uppercase tracking-tight">{key.replace(/_/g, " ")}</span>
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    <span className="px-2 py-0.5 bg-red-500/10 text-red-600 rounded line-through opacity-70 truncate max-w-[150px]">{displayOld || "None"}</span>
-                                    <ChevronRight className="w-3 h-3 text-muted-foreground" />
-                                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 rounded font-medium truncate max-w-[200px]">{displayNew || "None"}</span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-[10px] font-bold uppercase tracking-widest bg-muted px-2 py-1 rounded-md text-muted-foreground">
-                            {new Date(log.created_at).toLocaleString()}
-                          </span>
-                        </div>
+                        <h2 className="font-heading text-2xl">Manage FAQs</h2>
+                        <p className="text-sm text-muted-foreground">Add or edit questions that appear on the homepage.</p>
                       </div>
+                      <button 
+                        onClick={() => {
+                          const currentFaqs = Array.isArray(siteSettings.faqs) ? [...siteSettings.faqs] : [];
+                          setSiteSettings(prev => ({
+                            ...prev,
+                            faqs: [...currentFaqs, { q: "New Question?", a: "New Answer text here." }]
+                          } as SiteSettings));
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold"
+                      >
+                        <Plus className="w-4 h-4" /> Add FAQ
+                      </button>
                     </div>
 
-                    {/* Undo removed for now */}
-                  </motion.div>
-                ))}
-                
-                {filteredActivity.length === 0 && (
-                  <div className="text-center py-20 bg-muted/20 rounded-3xl border-2 border-dashed border-border">
-                    <History className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
-                    <p className="text-muted-foreground font-medium">No activity matching your filters.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {SITE_SETTING_CATEGORIES.find(c => c.id === activeTab)?.sections.map((section) => (
-                <div key={section.title} className="glass-panel p-8">
-                  <h2 className="font-heading text-2xl mb-2">{section.title}</h2>
-                  <div className="w-12 h-1 bg-accent rounded-full mb-8" />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {section.fields.map((field: any) => {
-                      const value = siteSettings[field.key] || "";
-                      return (
-                        <div key={field.key} className={`space-y-2 ${field.multiline || field.isImage ? "md:col-span-2" : ""}`}>
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                              {field.icon && <field.icon className="w-3.5 h-3.5" />}
-                              {field.label}
-                            </label>
-                            {DEFAULT_SITE_SETTINGS[field.key] && value !== DEFAULT_SITE_SETTINGS[field.key] && (
+                    <div className="space-y-4">
+                      {(Array.isArray(siteSettings.faqs) ? siteSettings.faqs : []).map((faq: any, i: number) => (
+                        <div key={i} className="p-6 bg-muted/30 rounded-2xl border border-border/50 group relative">
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="flex flex-col gap-1">
                               <button 
-                                onClick={() => updateField(field.key, DEFAULT_SITE_SETTINGS[field.key])}
-                                className="text-[10px] font-bold text-accent uppercase hover:underline"
+                                onClick={() => {
+                                  if (i === 0) return;
+                                  const newFaqs = [...(siteSettings.faqs as any[])];
+                                  [newFaqs[i - 1], newFaqs[i]] = [newFaqs[i], newFaqs[i - 1]];
+                                  setSiteSettings(prev => ({ ...prev, faqs: newFaqs } as SiteSettings));
+                                }}
+                                disabled={i === 0}
+                                className={`p-1 rounded-md transition-all ${i === 0 ? "opacity-20" : "hover:bg-accent hover:text-white"}`}
                               >
-                                Reset to Default
+                                <Plus className="w-3 h-3 rotate-[225deg]" />
                               </button>
-                            )}
-                          </div>
-                          
-                          {field.isImage ? (
-                            <div className="flex items-start gap-6">
-                              <div className="relative group/img w-48 h-32 rounded-2xl bg-muted overflow-hidden border-2 border-dashed border-border hover:border-accent transition-colors flex-shrink-0 cursor-pointer" onClick={() => setMediaPickerConfig({open: true, key: field.key})}>
-                                {value ? (
-                                  <img src={value} className="w-full h-full object-cover" alt={field.label} />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <ImageIcon className="w-8 h-8 opacity-20" />
-                                  </div>
-                                )}
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex flex-col items-center justify-center text-white">
-                                  <Upload className="w-6 h-6 mb-1" />
-                                  <span className="text-[10px] font-bold uppercase">Select / Upload</span>
-                                </div>
-                              </div>
-                              <div className="flex-1 space-y-2">
-                                <input 
-                                  value={value}
-                                  onChange={(e) => updateField(field.key, e.target.value)}
-                                  placeholder="Or paste an image URL..."
-                                  className="w-full px-4 py-3 bg-input-background border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-accent transition-all"
-                                />
-                                <p className="text-[10px] text-muted-foreground">Upload a file or paste a direct URL to the image.</p>
-                              </div>
+                              <button 
+                                onClick={() => {
+                                  const faqs = (siteSettings.faqs as any[]) || [];
+                                  if (i === faqs.length - 1) return;
+                                  const newFaqs = [...faqs];
+                                  [newFaqs[i + 1], newFaqs[i]] = [newFaqs[i], newFaqs[i + 1]];
+                                  setSiteSettings(prev => ({ ...prev, faqs: newFaqs } as SiteSettings));
+                                }}
+                                disabled={i === ((siteSettings.faqs as any[]) || []).length - 1}
+                                className={`p-1 rounded-md transition-all ${i === ((siteSettings.faqs as any[]) || []).length - 1 ? "opacity-20" : "hover:bg-accent hover:text-white"}`}
+                              >
+                                <Plus className="w-3 h-3 rotate-[45deg]" />
+                              </button>
                             </div>
-                          ) : field.isToggle ? (
-                            <button 
-                              onClick={() => updateField(field.key, value === "true" ? "false" : "true")}
-                              className={`relative w-14 h-7 rounded-full transition-all duration-300 ${value === "true" ? "bg-accent shadow-[0_0_15px_rgba(var(--accent),0.4)]" : "bg-muted"}`}
-                            >
-                              <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-all duration-300 transform ${value === "true" ? "translate-x-7" : ""}`} />
-                            </button>
-                          ) : field.key === "maintenance_pages" ? (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
-                              {["home", "treks", "gallery", "journal", "contact"].map(page => {
-                                const activePages = (value || "").toLowerCase().split(",").map(p => p.trim()).filter(Boolean);
-                                const isChecked = activePages.includes(page);
-                                return (
-                                  <label key={page} className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${isChecked ? "border-accent bg-accent/5" : "border-border hover:border-accent/50"}`}>
-                                    <input 
-                                      type="checkbox"
-                                      className="w-4 h-4 rounded text-accent"
-                                      checked={isChecked}
-                                      onChange={(e) => {
-                                        let newPages;
-                                        if (e.target.checked) {
-                                          newPages = Array.from(new Set([...activePages, page])).filter(Boolean);
-                                        } else {
-                                          newPages = activePages.filter(p => p !== page);
-                                        }
-                                        updateField(field.key, newPages.join(", "));
-                                      }}
-                                    />
-                                    <span className="text-xs font-bold uppercase tracking-widest capitalize">{page}</span>
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          ) : field.multiline ? (
-                            <textarea 
-                              value={value}
-                              onChange={(e) => updateField(field.key, e.target.value)}
-                              rows={4}
-                              placeholder={field.placeholder || ""}
-                              className="w-full p-4 bg-input-background border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-accent transition-all leading-relaxed resize-none"
-                            />
-                          ) : (
                             <input 
-                              value={value}
-                              onChange={(e) => updateField(field.key, e.target.value)}
-                              placeholder={field.placeholder || ""}
-                              className="w-full px-4 py-3 bg-input-background border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-accent transition-all"
+                              value={faq.q} 
+                              onChange={(e) => {
+                                const newFaqs = [...(siteSettings.faqs as any[])];
+                                newFaqs[i].q = e.target.value;
+                                setSiteSettings(prev => ({ ...prev, faqs: newFaqs } as SiteSettings));
+                              }}
+                              className="flex-1 bg-transparent font-bold text-primary outline-none"
+                              placeholder="Question"
                             />
-                          )}
+                            <button 
+                              onClick={() => {
+                                const newFaqs = (siteSettings.faqs as any[]).filter((_: any, idx: number) => idx !== i);
+                                setSiteSettings(prev => ({ ...prev, faqs: newFaqs } as SiteSettings));
+                              }}
+                              className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                            >
+                              <Undo2 className="w-4 h-4 rotate-45" />
+                            </button>
+                          </div>
+                          <textarea 
+                            value={faq.a} 
+                            onChange={(e) => {
+                              const newFaqs = [...(siteSettings.faqs as any[])];
+                              newFaqs[i].a = e.target.value;
+                              setSiteSettings(prev => ({ ...prev, faqs: newFaqs } as SiteSettings));
+                            }}
+                            className="w-full bg-transparent text-sm text-muted-foreground outline-none resize-none"
+                            rows={3}
+                            placeholder="Answer"
+                          />
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              ) : activeTab === "activity" ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div className="relative md:col-span-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <input 
+                        value={searchActivity} 
+                        onChange={(e) => setSearchActivity(e.target.value)} 
+                        placeholder="Search logs..." 
+                        className="w-full pl-10 pr-4 py-3 bg-card border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-accent/20 transition-all" 
+                      />
+                    </div>
+                    <div className="md:col-span-2 flex justify-end">
+                      <button 
+                        onClick={handleClearLogs}
+                        className="flex items-center gap-2 px-4 py-2 text-rose-500 hover:bg-rose-500/10 rounded-xl text-xs font-bold transition-all"
+                      >
+                        <History className="w-4 h-4" />
+                        Clear History
+                      </button>
+                    </div>
+                  </div>
 
-
-
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Sticky Save Bar - Always visible except for activity logs */}
-      {activeTab !== "activity" && (
-        <div className="sticky bottom-8 mt-12 bg-background/80 backdrop-blur-xl p-6 rounded-2xl border border-border shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 z-40">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span className="text-sm text-muted-foreground font-medium">You have unsaved changes in {TABS.find(t => t.id === activeTab)?.label}</span>
-          </div>
-          <button
-            onClick={handleSaveSite}
-            disabled={savingSite}
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-12 py-3.5 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-accent hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
-          >
-            {savingSite ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-            Publish Changes
-          </button>
+                  <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                          <tr className="bg-muted/30 border-b border-border">
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-40">Time</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-28">Action</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Details</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right w-24">Options</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {filteredActivity.length > 0 ? (
+                            filteredActivity.map((log: AdminActivityLog) => (
+                              <tr key={log.id} className="hover:bg-muted/20 transition-colors group">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-xs font-bold text-primary">
+                                    {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground">{new Date(log.createdAt).toLocaleDateString()}</div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${
+                                    log.actionType === "create" ? "text-emerald-600 bg-emerald-500/10" :
+                                    log.actionType === "delete" ? "text-rose-600 bg-rose-500/10" :
+                                    "text-blue-600 bg-blue-500/10"
+                                  }`}>
+                                    {log.actionType}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="text-sm font-medium text-primary leading-snug">{formatDetails(log.details || "")}</div>
+                                  <div className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1 font-bold opacity-50">{log.entityType?.replace("_", " ")}</div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  {log.actionType !== "create" && (
+                                    <button
+                                      onClick={() => handleUndo(log.id)}
+                                      className="text-xs font-black text-secondary hover:text-secondary/80 hover:underline transition-all"
+                                    >
+                                      Undo
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={4} className="px-6 py-24 text-center">
+                                <History className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
+                                <p className="text-sm text-muted-foreground font-medium">No activity logs found matching your criteria.</p>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {SITE_SETTING_CATEGORIES.find(c => c.id === activeTab)?.sections.map((section) => (
+                    <div key={section.title} className="glass-panel p-8">
+                      <h2 className="font-heading text-2xl mb-2">{section.title}</h2>
+                      <div className="w-12 h-1 bg-accent rounded-full mb-8" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {section.fields.map((field: any) => {
+                          const value = siteSettings[field.key] || "";
+                          return (
+                            <div key={field.key} className={`space-y-2 ${field.multiline || field.isImage ? "md:col-span-2" : ""}`}>
+                              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                {field.label}
+                              </label>
+                              {field.isImage ? (
+                                <div className="flex items-start gap-4">
+                                  <div className="w-32 h-20 bg-muted rounded-xl overflow-hidden border border-border cursor-pointer" onClick={() => setMediaPickerConfig({open: true, key: field.key})}>
+                                    {value && <img src={value} className="w-full h-full object-cover" />}
+                                  </div>
+                                  <input value={value} onChange={(e) => updateField(field.key, e.target.value)} className="flex-1 px-4 py-2 bg-input-background border border-border rounded-xl text-sm" />
+                                </div>
+                              ) : field.isToggle ? (
+                                <button onClick={() => updateField(field.key, value === "true" ? "false" : "true")} className={`relative w-12 h-6 rounded-full transition-colors ${value === "true" ? "bg-accent" : "bg-muted"}`}>
+                                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${value === "true" ? "translate-x-6" : ""}`} />
+                                </button>
+                              ) : field.multiline ? (
+                                <textarea value={value} onChange={(e) => updateField(field.key, e.target.value)} rows={4} className="w-full p-4 bg-input-background border border-border rounded-xl text-sm resize-none" />
+                              ) : (
+                                <input value={value} onChange={(e) => updateField(field.key, e.target.value)} className="w-full px-4 py-2 bg-input-background border border-border rounded-xl text-sm" />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
-      )}
-      <MediaPickerModal 
-        open={mediaPickerConfig.open} 
-        onOpenChange={(open) => setMediaPickerConfig(prev => ({...prev, open}))} 
-        onSelect={(url) => {
-          if (mediaPickerConfig.key) updateField(mediaPickerConfig.key, url);
-        }} 
-        defaultBucket={TREK_IMAGES_BUCKET}
-      />
+
+        {/* Floating Save Button Removed in favor of Header Button */}
+      </main>
+
+      <MediaPickerModal open={mediaPickerConfig.open} onOpenChange={(o) => setMediaPickerConfig(p => ({...p, open: o}))} onSelect={(url) => { if (mediaPickerConfig.key) updateField(mediaPickerConfig.key, url); }} defaultBucket={TREK_IMAGES_BUCKET} />
     </div>
   );
 }

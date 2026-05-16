@@ -3,7 +3,7 @@ export interface Trek {
   title: string;
   description: string;
   duration: string;
-  difficulty: "Easy" | "Moderate" | "Challenging" | "Strenuous";
+  difficulty: "Easy" | "Moderate" | "Challenging" | "Difficult" | "Strenuous";
   maxAltitude: string;
   bestSeason: string;
   groupSize: string;
@@ -12,9 +12,10 @@ export interface Trek {
   featured: boolean;
   highlights: string[];
   itinerary: { day: number; title: string; description: string }[];
-  sortOrder?: number;
-  gallery?: string[];
-  createdAt?: string;
+  sortOrder: number;
+  gallery: string[];
+  videoUrl: string | null;
+  createdAt: string;
 }
 
 export interface Notice {
@@ -67,7 +68,11 @@ export const mockTreks: Trek[] = [
       { day: 2, title: "Fly to Lukla, Trek to Phakding", description: "Scenic mountain flight followed by gentle trek to Phakding." },
       { day: 3, title: "Phakding to Namche Bazaar", description: "Cross suspension bridges and climb to the vibrant Sherpa town." },
       { day: 4, title: "Acclimatization Day in Namche", description: "Explore Namche Bazaar and hike to Everest View Hotel." }
-    ]
+    ],
+    sortOrder: 1,
+    gallery: [],
+    videoUrl: null,
+    createdAt: new Date().toISOString()
   },
   {
     id: "2",
@@ -92,7 +97,11 @@ export const mockTreks: Trek[] = [
       { day: 1, title: "Arrival in Kathmandu", description: "Hotel transfer and preparation." },
       { day: 2, title: "Drive to Besisahar, Trek to Bhulbhule", description: "Begin the circuit adventure." },
       { day: 3, title: "Bhulbhule to Chamje", description: "Trek through terraced fields and villages." }
-    ]
+    ],
+    sortOrder: 2,
+    gallery: [],
+    videoUrl: null,
+    createdAt: new Date().toISOString()
   },
   {
     id: "3",
@@ -113,7 +122,11 @@ export const mockTreks: Trek[] = [
       "Panoramic Himalayan views",
       "Close proximity to Kathmandu"
     ],
-    itinerary: []
+    itinerary: [],
+    sortOrder: 3,
+    gallery: [],
+    videoUrl: null,
+    createdAt: new Date().toISOString()
   },
   {
     id: "4",
@@ -134,7 +147,11 @@ export const mockTreks: Trek[] = [
       "Views of Manaslu (8,163m)",
       "Rich biodiversity"
     ],
-    itinerary: []
+    itinerary: [],
+    sortOrder: 4,
+    gallery: [],
+    videoUrl: null,
+    createdAt: new Date().toISOString()
   },
   {
     id: "5",
@@ -155,7 +172,11 @@ export const mockTreks: Trek[] = [
       "Less crowded than EBC route",
       "Stunning alpine scenery"
     ],
-    itinerary: []
+    itinerary: [],
+    sortOrder: 5,
+    gallery: [],
+    videoUrl: null,
+    createdAt: new Date().toISOString()
   },
   {
     id: "6",
@@ -176,7 +197,11 @@ export const mockTreks: Trek[] = [
       "Rhododendron forests",
       "Perfect for families"
     ],
-    itinerary: []
+    itinerary: [],
+    sortOrder: 6,
+    gallery: [],
+    videoUrl: null,
+    createdAt: new Date().toISOString()
   }
 ];
 

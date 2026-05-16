@@ -5,7 +5,7 @@ export function CursorFollower() {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
-  const springConfig = { damping: 25, stiffness: 200 };
+  const springConfig = { damping: 20, stiffness: 300 }; // More responsive
   const cursorX = useSpring(mouseX, springConfig);
   const cursorY = useSpring(mouseY, springConfig);
 
@@ -20,16 +20,27 @@ export function CursorFollower() {
   }, []);
 
   return (
-    <motion.div
-      className="fixed top-0 left-0 w-8 h-8 border border-accent/30 rounded-full pointer-events-none z-[9999] hidden md:block"
-      style={{
-        x: cursorX,
-        y: cursorY,
-        translateX: "-50%",
-        translateY: "-50%",
-      }}
-    >
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-accent rounded-full" />
-    </motion.div>
+    <>
+      {/* Real-time Dot */}
+      <motion.div
+        className="fixed top-0 left-0 w-1.5 h-1.5 bg-accent rounded-full pointer-events-none z-[10000] hidden md:block"
+        style={{
+          x: mouseX,
+          y: mouseY,
+          translateX: "-50%",
+          translateY: "-50%",
+        }}
+      />
+      {/* Smooth Following Circle */}
+      <motion.div
+        className="fixed top-0 left-0 w-10 h-10 border border-accent/20 rounded-full pointer-events-none z-[9999] hidden md:block"
+        style={{
+          x: cursorX,
+          y: cursorY,
+          translateX: "-50%",
+          translateY: "-50%",
+        }}
+      />
+    </>
   );
 }

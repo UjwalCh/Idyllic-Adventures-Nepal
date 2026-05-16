@@ -1,6 +1,7 @@
 import { motion, useScroll, useTransform, useSpring } from "motion/react";
 import { useRef } from "react";
 import ImageWithFallback from "../figma/ImageWithFallback";
+import { FloatingParticles } from "./FloatingParticles";
 
 interface ParallaxHeroProps {
   title: React.ReactNode;
@@ -26,7 +27,8 @@ export default function ParallaxHero({ title, subtitle, badge, image, video, chi
   const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   return (
-    <section ref={ref} className="relative min-h-[100dvh] h-[100dvh] overflow-hidden flex items-center justify-center">
+    <section ref={ref} className="relative min-h-[100dvh] md:h-[100dvh] overflow-hidden flex items-center justify-center py-20 md:py-0">
+      <FloatingParticles />
       {/* Background Layer */}
       <motion.div 
         style={{ y: backgroundY, translateZ: 0 }} 
@@ -57,16 +59,14 @@ export default function ParallaxHero({ title, subtitle, badge, image, video, chi
         style={{ y: textY, opacity, translateZ: 0 }}
         className="relative z-10 container mx-auto px-4 lg:px-8 text-center pt-24 pb-16 transform-gpu will-change-transform"
       >
-        {badge && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="inline-block px-5 py-1.5 bg-secondary/90 text-[#020617] rounded-full mb-4 backdrop-blur-md border border-white/20 shadow-xl"
+            className="inline-block px-8 py-2 bg-[#38BDF8] text-[#020617] rounded-full mb-6 backdrop-blur-md border border-white/20 shadow-xl shadow-blue-500/20"
           >
-            <span className="text-xs font-bold tracking-[0.2em] uppercase">{badge}</span>
+            <span className="text-[10px] md:text-xs font-black tracking-[0.3em] uppercase">{badge}</span>
           </motion.div>
-        )}
         
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
@@ -98,8 +98,22 @@ export default function ParallaxHero({ title, subtitle, badge, image, video, chi
         </motion.div>
       </motion.div>
 
-      {/* Dynamic Overlay Elements */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-background/20 z-20" />
+      {/* Dynamic Overlay Elements - Reduced Glow */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-[#020617]/90 z-20" />
+      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#020617]/20 to-transparent z-20 pointer-events-none" />
+      
+      {/* Animated Mist Drift */}
+      <div className="absolute bottom-0 left-0 right-0 h-64 overflow-hidden pointer-events-none z-10 opacity-30">
+        <motion.div
+          animate={{ x: [0, -1000] }}
+          transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+          className="flex whitespace-nowrap"
+        >
+          <div className="w-[1000px] h-full bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.1)_0%,_transparent_70%)] blur-3xl" />
+          <div className="w-[1000px] h-full bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.05)_0%,_transparent_70%)] blur-3xl" />
+          <div className="w-[1000px] h-full bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.1)_0%,_transparent_70%)] blur-3xl" />
+        </motion.div>
+      </div>
     </section>
   );
 }

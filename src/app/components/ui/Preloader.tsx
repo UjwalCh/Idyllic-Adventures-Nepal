@@ -92,66 +92,75 @@ export function Preloader({ onComplete }: { onComplete?: () => void }) {
               initial={{ top: "-10%", left: `${drop.left}%`, opacity: 0 }}
               animate={{ 
                 top: "110%", 
-                left: `${drop.left + 15}%`, 
-                opacity: [0, drop.opacity, 0] 
+                left: `${drop.left + 10}%`, 
+                opacity: [0, drop.opacity * 1.5, 0] 
               }}
               transition={{ 
-                duration: drop.duration, 
+                duration: drop.duration * 1.5, 
                 repeat: Infinity, 
                 delay: drop.delay,
                 ease: "linear"
               }}
-              className="absolute w-[1.5px] bg-gradient-to-b from-white/40 to-transparent transform -rotate-[15deg]"
-              style={{ height: `${drop.height}px` }}
+              className="absolute w-[1px] bg-gradient-to-b from-accent/40 via-white/20 to-transparent"
+              style={{ height: `${drop.height * 1.2}px` }}
             />
           ))}
-          {/* Mist overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-[#020617] opacity-40" />
+          {/* Deep atmosphere overlay */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#020617] via-transparent to-[#020617] opacity-60" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.03)_0%,transparent_70%)]" />
         </div>
 
-        {/* Content Container with Zoom Safety */}
-        <div className="relative z-10 flex flex-col items-center justify-center gap-12 w-full max-w-4xl px-8 h-full">
+        {/* Content Container with Height-Aware Scaling */}
+        <div className="relative z-10 flex flex-col items-center justify-between w-full max-w-[64rem] px-[1.5rem] py-[2rem] md:py-[4rem] h-full max-h-screen overflow-hidden">
           
-          {/* Top Branding */}
+          {/* Top Branding - Fades out on very short screens to save space */}
           <motion.div 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-1 opacity-40 mb-auto pt-12"
+            className="flex flex-col items-center gap-[0.5rem] opacity-50 shrink-0 hidden sm:flex"
           >
-            <div className="text-[10px] tracking-[0.6em] uppercase font-black text-white/60">Idyllic Adventures</div>
+            <div className="text-[0.6rem] md:text-[0.75rem] tracking-[0.6em] uppercase font-black text-white/80">Idyllic Adventures</div>
+            <div className="w-[3rem] h-[1px] bg-accent/30" />
           </motion.div>
 
-          {/* Center Main Content */}
-          <div className="flex flex-col items-center justify-center gap-12 md:gap-20 w-full mb-auto">
+          {/* Center Main Content - Flex shrink ensures it fits */}
+          <div className="flex flex-col items-center justify-center gap-[1.5rem] md:gap-[3rem] w-full flex-1 min-h-0">
             
-            {/* The Mountain Path Animation */}
-            <div className="relative w-full max-w-[320px] md:max-w-[500px] aspect-[16/9] flex items-center justify-center">
+            {/* The Mountain Path Animation - Scaled down for height safety */}
+            <div className="relative w-full max-w-[14rem] sm:max-w-[20rem] md:max-w-[28rem] aspect-[16/9] flex items-center justify-center shrink min-h-0">
               {/* Background Path */}
-              <svg viewBox="0 0 100 60" className="absolute inset-0 w-full h-full text-white/[0.05]">
-                <path d="M0 60 L30 20 L50 40 L75 10 L100 60" fill="none" stroke="currentColor" strokeWidth="0.5" />
+              <svg viewBox="0 0 100 60" className="absolute inset-0 w-full h-full text-white/[0.03]">
+                <path d="M0 60 L30 20 L50 40 L75 10 L100 60" fill="none" stroke="currentColor" strokeWidth="0.3" />
               </svg>
 
               {/* Active Path */}
               <svg viewBox="0 0 100 60" className="absolute inset-0 w-full h-full">
                 <defs>
-                  <linearGradient id="peak-gradient-v3" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="var(--accent)" />
+                  <linearGradient id="peak-gradient-v6" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#f59e0b" />
                     <stop offset="100%" stopColor="#fff" />
                   </linearGradient>
+                  <filter id="glow-v6">
+                    <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+                    <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
                 </defs>
                 <motion.path 
                   d="M0 60 L30 20 L50 40 L75 10 L100 60" 
                   fill="none" 
-                  stroke="url(#peak-gradient-v3)" 
-                  strokeWidth="2"
+                  stroke="url(#peak-gradient-v6)" 
+                  strokeWidth="2.5"
                   strokeLinecap="round"
+                  filter="url(#glow-v6)"
                   initial={{ pathLength: 0 }}
                   animate={{ pathLength: progress / 100 }}
-                  className="drop-shadow-[0_0_25px_rgba(245,158,11,1)]"
                 />
                 <motion.circle
-                  r="1.5"
-                  className="fill-white"
+                  r="1.2"
+                  className="fill-white shadow-[0_0_10px_white]"
                   style={{ 
                     offsetPath: "path('M0 60 L30 20 L50 40 L75 10 L100 60')", 
                     offsetDistance: `${progress}%` 
@@ -159,45 +168,51 @@ export function Preloader({ onComplete }: { onComplete?: () => void }) {
                 />
               </svg>
 
-              {/* Enhanced Percentage */}
+              {/* High Visibility Percentage */}
               <motion.div 
-                className="absolute inset-0 flex items-center justify-center text-7xl md:text-[14rem] font-black opacity-10 select-none pointer-events-none"
-                style={{ WebkitTextStroke: "1.5px white", color: "transparent" }}
+                className="absolute inset-0 flex items-center justify-center text-[4rem] sm:text-[6rem] md:text-[8rem] font-black opacity-[0.12] select-none pointer-events-none"
+                style={{ WebkitTextStroke: "2px rgba(255,255,255,0.4)", color: "transparent" }}
               >
-                {progress}%
+                {progress}
               </motion.div>
             </div>
 
             {/* Logo and Tips Container */}
-            <div className="flex flex-col items-center gap-8 w-full">
+            <div className="flex flex-col items-center gap-[1.5rem] md:gap-[2.5rem] w-full min-h-0 shrink">
               <motion.div
-                animate={{ scale: [1, 1.03, 1] }}
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                className="w-24 h-24 md:w-40 md:h-40"
+                animate={{ 
+                  scale: [1, 1.05, 1],
+                  rotate: [0, 1, 0, -1, 0]
+                }}
+                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                className="w-[4rem] h-[4rem] sm:w-[6rem] sm:h-[6rem] md:w-[8rem] md:h-[8rem] relative shrink-0"
               >
+                <div className="absolute inset-0 bg-accent/10 blur-3xl rounded-full" />
                 {settings?.site_logo ? (
-                  <img src={settings.site_logo} alt="Logo" className="w-full h-full object-contain" />
+                  <img src={settings.site_logo} alt="Logo" className="w-full h-full object-contain relative z-10 filter brightness-110" />
                 ) : (
-                  <Mountain className="w-full h-full text-accent/20" />
+                  <Mountain className="w-full h-full text-accent/30 relative z-10" />
                 )}
               </motion.div>
 
               {/* High Visibility Quotes */}
-              <div className="text-center h-24 md:h-32 flex items-center justify-center w-full">
+              <div className="text-center h-auto min-h-[5rem] md:min-h-[8rem] flex items-center justify-center w-full max-w-[40rem] shrink">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={tipIdx}
-                    initial={{ opacity: 0, y: 10, filter: "blur(8px)" }}
+                    initial={{ opacity: 0, y: 15, filter: "blur(10px)" }}
                     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    exit={{ opacity: 0, y: -10, filter: "blur(8px)" }}
-                    transition={{ duration: 0.8 }}
-                    className="flex flex-col items-center gap-3"
+                    exit={{ opacity: 0, y: -15, filter: "blur(10px)" }}
+                    transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+                    className="flex flex-col items-center gap-[0.75rem] px-[1.5rem]"
                   >
-                    <div className="flex items-center gap-3 text-accent shadow-accent/20">
-                      <TipIcon className="w-4 h-4 md:w-5 md:h-5" />
-                      <span className="text-[8px] md:text-[10px] uppercase tracking-[0.5em] font-black">Everest Expedition</span>
+                    <div className="flex items-center gap-[0.5rem] px-[0.8rem] py-[0.3rem] rounded-full bg-white/5 border border-white/10">
+                      <TipIcon className="w-[0.8rem] md:w-[0.9rem] h-[0.8rem] md:h-[0.9rem] text-accent" />
+                      <span className="text-[0.5rem] md:text-[0.55rem] uppercase tracking-[0.4em] font-black text-white/70">
+                        {progress < 30 ? "Setting up Basecamp" : progress < 70 ? "Ascending High Passes" : "Final Approach"}
+                      </span>
                     </div>
-                    <p className="text-base md:text-2xl font-heading tracking-tight text-white font-medium leading-tight px-4 max-w-2xl italic">
+                    <p className="text-[1rem] sm:text-[1.125rem] md:text-[1.5rem] font-heading tracking-tight text-white font-bold leading-tight italic drop-shadow-lg line-clamp-3">
                       "{shuffledTips[tipIdx].text}"
                     </p>
                   </motion.div>
@@ -206,18 +221,18 @@ export function Preloader({ onComplete }: { onComplete?: () => void }) {
             </div>
           </div>
           
-          {/* Bottom Progress UI */}
-          <div className="w-full max-w-sm px-8 flex flex-col items-center gap-5 mt-auto pb-12">
-            <div className="w-full h-[1px] bg-white/10 relative">
+          {/* Bottom Progress UI - Pushed to absolute bottom on very small heights if needed */}
+          <div className="w-full max-w-[20rem] flex flex-col items-center gap-[1rem] mt-auto shrink-0 pb-[1rem]">
+            <div className="w-full h-[2px] bg-white/5 rounded-full overflow-hidden relative">
               <motion.div 
-                className="absolute top-[-0.5px] left-0 h-[2px] bg-accent shadow-[0_0_25px_rgba(245,158,11,1)]"
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-accent to-white shadow-[0_0_15px_rgba(245,158,11,0.6)]"
                 initial={{ width: "0%" }}
                 animate={{ width: `${progress}%` }}
               />
             </div>
-            <div className="flex justify-between w-full text-[8px] uppercase tracking-[0.4em] font-black text-white/40">
-              <span className="animate-pulse">Loading Adventure</span>
-              <span className="text-accent">{progress}%</span>
+            <div className="flex justify-between w-full text-[0.5rem] md:text-[0.55rem] uppercase tracking-[0.5em] font-black">
+              <span className="text-white/40 animate-pulse">Syncing Gear</span>
+              <span className="text-accent drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">{progress}%</span>
             </div>
           </div>
         </div>

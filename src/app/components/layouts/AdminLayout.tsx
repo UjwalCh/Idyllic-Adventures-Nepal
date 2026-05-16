@@ -22,11 +22,13 @@ import { useTheme, ThemeProvider } from "next-themes";
 import { Toaster } from "../ui/sonner";
 import { useBranding } from "../../data/useBranding";
 import { WebsiteAnalyticsTracker } from "../WebsiteAnalyticsTracker";
+import { CursorFollower } from "../ui/CursorFollower";
 
 export function AdminLayout() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="idyllic-admin-theme">
       <WebsiteAnalyticsTracker />
+      <CursorFollower />
       <AdminLayoutContent />
       <Toaster position="top-right" />
     </ThemeProvider>
